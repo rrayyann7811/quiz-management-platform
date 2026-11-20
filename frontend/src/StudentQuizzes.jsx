@@ -22,29 +22,6 @@ function QuizFacts({ quiz }) {
   );
 }
 
-export function StudentHome({ api }) {
-  const [state] = useRequest(api, '/attempts/active');
-  return (
-    <div className="space-y-5">
-      <h1 className="text-2xl font-semibold">Student dashboard</h1>
-      <Link className="button inline-block" to="/student/quizzes">Browse quizzes</Link>
-      <section className="space-y-3" aria-labelledby="active-attempts">
-        <h2 id="active-attempts" className="text-lg font-semibold">In-progress quizzes</h2>
-        {!state.data ? <RequestStatus error={state.error} /> : state.data.attempts.length ? (
-          <ul className="space-y-2">
-            {state.data.attempts.map(({ id, quizTitle }) => (
-              <li key={id} className="card flex flex-wrap items-center justify-between gap-3">
-                <span className="break-words font-medium">{quizTitle}</span>
-                <Link to={'/student/attempts/' + id}>Continue quiz<span className="sr-only"> {quizTitle}</span></Link>
-              </li>
-            ))}
-          </ul>
-        ) : <p className="text-sm text-slate-600">You have no in-progress quizzes.</p>}
-      </section>
-    </div>
-  );
-}
-
 export function StudentQuizzes({ api }) {
   const [params, setParams] = useSearchParams();
   const [categories] = useRequest(api, '/categories');

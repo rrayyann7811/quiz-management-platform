@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "concurrently -k 'npm run dev -w backend' 'npm run dev -w frontend'",
     "build": "npm run build -w frontend",
-    "test": "npm test -w backend"
+    "test": "npm test -w backend && npm test -w frontend"
   },
   "engines": {"node": ">=22.12"},
   "devDependencies": {"concurrently": "^9.2.1"}

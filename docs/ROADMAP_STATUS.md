@@ -4,7 +4,7 @@
 - [x] Day 2. Role middleware and dashboard guards, database-backed admin statistics, student search, profile, history and account status controls.
 - [x] Day 3. Category, quiz and MCQ CRUD, preview, publish validation and demo content.
 - [x] Day 4. Student discovery, eligibility, timed attempts, saved answers and scoring.
-- [ ] Day 5. Results, review, history, student dashboard and history integrity verification.
+- [x] Day 5. Results, review, history, student dashboard and history integrity verification.
 - [ ] Day 6. Admin performance analytics and deterministic leaderboards.
 - [ ] Day 7. Regression/security testing, polish, screenshots, release preparation and handoff.
 
@@ -41,3 +41,11 @@
 - `TEST_DATABASE_URL=<verified-local-url> npm test` passed on the upgraded `quiz_platform_day3_test` and fresh `quiz_platform_day4_test` (3 tests each). Coverage includes Day 1–3 regressions, concurrent starts, attempts counted on start, visibility, ownership, snapshot isolation, saved answers, correct/incorrect/unanswered and weighted scoring, pass/fail, late saves, expiry after API restart, concurrent save/submit, and idempotent finalization. The attempt suite uses an injected clock with no expiry sleeps.
 - `node /tmp/quiz-day4-browser-smoke.mjs` passed in headless Chrome with real Vite, Express, and PostgreSQL. Tested discovery filters, loading, an invalid answer request and invalid attempt page, question navigation, saved answers after reload, the same attempt and deadline across tabs, backend score, and automatic timeout submission with an advanced server test clock. The attempt screen fit 1024px, 1366px, and 390px viewports. The initial smoke script expected a radio to update before the save response. The final check waited for the persisted-answer UI and passed.
 - `npm run build` and `git diff --check` passed. Live email verification, the recorded older local migration checksum discrepancy, and the Prisma CLI dependency findings carry forward. An abandoned attempt is finalized on subsequent access. Detailed review and student history remain Day 5 work.
+
+## Day 5 checkpoint
+
+- Added student result and review pages, paginated attempt history, and a database-backed dashboard with finalized totals, pass/fail counts, score averages and maximums, known answered-question counts, recent attempts and a Recharts score trend. Admins can open completed results from student profiles through a separate admin route.
+- No database schema or migration changes. `npm run generate -w backend` passed. `prisma migrate status --schema backend/prisma/schema.prisma` verified all four migrations applied to the dedicated loopback `quiz_platform_day3_test` database.
+- `TEST_DATABASE_URL=<verified-local-url> npm test` passed four backend integration scenarios and one frontend timer-resume regression test. Coverage includes Day 1–4 behavior, owned and foreign access, active-attempt redaction, correct/incorrect/unanswered and weighted review, timeout settlement, immutable history after editing and archiving, legacy summaries, pagination, sorting, empty dashboards and persisted aggregations.
+- `node /tmp/quiz-day5-browser-smoke.mjs --reproduce-timer` reproduced a stale displayed countdown under simulated inactivity before the fix. `node /tmp/quiz-day5-browser-smoke.mjs` passed in headless Chrome after adding server resync and correcting a mobile table overflow. It covered real login, empty dashboard, discovery, start, saved answers, submission and score, result loading and refresh, review navigation and statuses, history links, database-backed stats, one- and two-point charts, invalid result handling, mobile layout at 390px, and visibility/focus recovery of a timed-out attempt.
+- `npm run build` and `git diff --check` passed. Legacy attempts remain summary-only and the dashboard explains their unavailable question counts. Live email delivery, the older local checksum discrepancy, and the previously recorded Prisma CLI dependency findings carry forward. Day 6 has yet to start.

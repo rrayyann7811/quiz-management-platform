@@ -25,3 +25,10 @@
 - PostgreSQL wall time is read after acquiring the relevant locks. At the deadline or later, the next attempt access finalizes it as TIMED_OUT with the original deadline as submission time. The browser anchors its display to server time and sends an expiry-only submission when the countdown reaches zero, retrying while online. No background worker is required. Abandoned attempts with no subsequent access can remain stored as IN_PROGRESS until accessed.
 - Incorrect and unanswered questions earn zero. The backend sums the marks on correct responses and divides by the total available marks, then rounds the percentage half up to two decimals. Pass/fail compares the stored rounded percentage with the snapshotted threshold. Elapsed time is whole seconds rounded down, capped at the duration for a timeout.
 - Finalized responses show a basic summary. Detailed review, student history, and performance analytics are deferred to Day 5.
+
+## Day 5 results and performance
+
+- Result and history APIs reuse Day 4 attempt storage and expiry handling. No schema changes were needed. Aggregate scores, marks, and counts come from the finalized record. Review renders an explicit projection of immutable snapshots and saved answers after finalization. Administrator access uses a separate completed-only endpoint.
+- Legacy attempts keep their stored summaries. Missing marks, review, response counts, lifecycle status, and elapsed time remain unavailable. The dashboard includes legacy scores in finalized attempt totals, pass/fail, average (rounded to two decimals), maximum, and the trend. It sums answered questions only from known correct and incorrect counts, and displays the missing-count limitation.
+- The dashboard shows five recent attempts and a chronological Recharts line for up to 20 finalized scores, including timed-out attempts. An empty history has null average and highest scores. The chart loads only when there are scores.
+- Returning to a visible attempt tab refreshes that attempt under the same client request guard used by saves and submission. The browser re-anchors to the saved deadline returned by the server. No attempt or deadline is recreated.

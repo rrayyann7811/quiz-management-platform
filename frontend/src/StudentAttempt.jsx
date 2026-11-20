@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { requestError, RequestStatus } from './StudentQuizzes.jsx';
+import { listenForAttemptResume } from './attempt-resume.js';
 
 const navigationButton = 'rounded-md border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-100 disabled:opacity-50';
 
@@ -21,7 +22,10 @@ function SubmissionSummary({ attempt }) {
           'Time taken': formatTime(summary.elapsedSeconds),
         }).map(([name, value]) => <div key={name}><dt className="text-sm text-slate-600">{name}</dt><dd className="font-semibold">{value}</dd></div>)}
       </dl>
-      <Link to="/student">Return to dashboard</Link>
+      <nav className="flex flex-wrap gap-4" aria-label="Submission navigation">
+        <Link to={'/student/attempts/' + attempt.id + '/result'}>View detailed result</Link>
+        <Link to="/student">Return to dashboard</Link>
+      </nav>
     </section>
   );
 }
@@ -62,12 +66,45 @@ export function StudentAttempt({ api }) {
       setSeconds(Math.max(0, Math.ceil((deadline.current - performance.now()) / 1000)));
     }
     const ticker = window.setInterval(updateTime, 250);
-    window.addEventListener('focus', updateTime);
-    return () => {
-      window.clearInterval(ticker);
-      window.removeEventListener('focus', updateTime);
-    };
+    return () => window.clearInterval(ticker);
   }, [active]);
+
+  useEffect(() => {
+    if (!active) return;
+    const controller = new AbortController();
+    let retry;
+
+    async function refresh() {
+      if (document.visibilityState !== 'visible') return;
+      if (pending.current) {
+        retry = window.setTimeout(refresh, 200);
+        return;
+      }
+      pending.current = true;
+      setBusy('refresh');
+      const sentAt = performance.now();
+      try {
+        const { data } = await api.get(path, { signal: controller.signal });
+        receiveAttempt(data.attempt, sentAt);
+        setError('');
+      } catch (error) {
+        if (!controller.signal.aborted) setError(requestError(error));
+      } finally {
+        pending.current = false;
+        if (!controller.signal.aborted) setBusy('');
+      }
+    }
+
+    const stop = listenForAttemptResume(() => {
+      window.clearTimeout(retry);
+      retry = window.setTimeout(refresh, 100);
+    });
+    return () => {
+      stop();
+      window.clearTimeout(retry);
+      controller.abort();
+    };
+  }, [active, api, path, receiveAttempt]);
 
   const submit = useCallback(async (automatic) => {
     if (pending.current || (automatic && !navigator.onLine)) return;

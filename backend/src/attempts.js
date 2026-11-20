@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { ApiError } from './api-error.js';
 import { validatePublishableQuiz } from './authoring.js';
 import { requireRole } from './users.js';
+import { resultRoutes } from './results.js';
 
 const idSchema = z.uuid();
 const emptyBody = z.strictObject({});
@@ -23,10 +24,10 @@ async function lockStudent(tx, userId) {
   if (!user) throw new ApiError(401, 'Sign in to continue.');
 }
 
-async function lockAttempt(tx, id, userId) {
+async function lockAttempt(tx, id, userId, { includeLegacy = false } = {}) {
   const [row] = await tx.$queryRaw`
     SELECT id FROM "Attempt"
-    WHERE id = ${id}::uuid AND "userId" = ${userId}::uuid AND "status" IS NOT NULL FOR UPDATE
+    WHERE id = ${id}::uuid AND "userId" = ${userId}::uuid AND (${includeLegacy} OR "status" IS NOT NULL) FOR UPDATE
   `;
   if (!row) throw notFound();
   return tx.attempt.findUnique({ where: { id } });
@@ -165,21 +166,27 @@ export function attemptRoutes(app, db, authenticate, clock = databaseClock) {
     res.status(created ? 201 : 200).json({ attempt: view });
   });
 
-  app.get('/api/attempts/active', ...student, async (req, res) => {
-    const attempts = await withStudent(req, async (tx, userId) => {
-      const rows = await tx.attempt.findMany({
-        where: { userId, status: 'IN_PROGRESS' }, orderBy: { id: 'asc' }, select: { id: true },
-      });
-      const active = [];
-      for (const row of rows) {
-        const attempt = await lockAttempt(tx, row.id, userId);
-        const current = await expire(tx, attempt, await clock(tx));
-        if (current.status === 'IN_PROGRESS') {
-          active.push({ id: current.id, quizTitle: current.quizTitle, expiresAt: current.expiresAt });
-        }
-      }
-      return active;
+  async function settleActive(tx, userId, { expiredOnly = false } = {}) {
+    const now = await clock(tx);
+    const rows = await tx.attempt.findMany({
+      where: { userId, status: 'IN_PROGRESS', ...(expiredOnly && { expiresAt: { lte: now } }) },
+      orderBy: { id: 'asc' }, select: { id: true },
     });
+    const active = [];
+    for (const row of rows) {
+      const attempt = await lockAttempt(tx, row.id, userId);
+      const current = await expire(tx, attempt, await clock(tx));
+      if (current.status === 'IN_PROGRESS') {
+        active.push({ id: current.id, quizTitle: current.quizTitle, expiresAt: current.expiresAt });
+      }
+    }
+    return active;
+  }
+
+  resultRoutes(app, db, authenticate, { withStudent, lockAttempt, expire, clock, settleActive });
+
+  app.get('/api/attempts/active', ...student, async (req, res) => {
+    const attempts = await withStudent(req, (tx, userId) => settleActive(tx, userId));
     res.json({ attempts });
   });
 

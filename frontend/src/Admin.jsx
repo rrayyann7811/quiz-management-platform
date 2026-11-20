@@ -146,7 +146,7 @@ function AttemptHistory({ api, path }) {
                 <tbody>
                   {state.data.attempts.map((attempt) => (
                     <tr key={attempt.id} className="border-t border-slate-200">
-                      <td className="p-3">{attempt.quizTitle}</td>
+                      <td className="p-3"><Link to={'/admin/attempts/' + attempt.id + '/result'}>{attempt.quizTitle}</Link></td>
                       <td className="p-3">{new Date(attempt.finalizedAt).toLocaleString()}</td>
                       <td className="p-3">{attempt.score}%</td>
                       <td className="p-3">{attempt.passed ? 'Passed' : 'Failed'}</td>

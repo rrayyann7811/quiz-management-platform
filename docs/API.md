@@ -77,3 +77,16 @@ All attempt routes require an active STUDENT session. An unknown attempt ID or a
 | POST /attempts/:attemptId/submit | Empty body, `{}`, or `{onlyIfExpired: boolean}` → `{attempt}`. When `onlyIfExpired` is true, calls before expiry return the active attempt. Repeated submissions return the stored result. |
 
 An attempt response contains `id`, `quizId`, `quizTitle`, `status`, `startedAt`, `expiresAt`, and `serverNow`. In progress it also contains `questions` (question and option IDs and text) and `answers` (question UUID to selected option UUID). The finalized response contains `finalizedAt` and `summary` with `totalQuestions`, `correctCount`, `incorrectCount`, `unansweredCount`, `maximumMarks`, `obtainedMarks`, `percentage`, `passed`, and `elapsedSeconds`. The response never returns grading keys or explanations at this checkpoint.
+
+## Finalized results, history and student dashboard
+
+| Method and path | Access | Request and successful response |
+| --- | --- | --- |
+| GET /attempts/:attemptId/result | STUDENT | Returns `{result}` for an owned, finalized attempt. Overdue attempts finalize first. A still-active owned attempt returns 409. Missing or foreign IDs return 404. |
+| GET /attempts | STUDENT | Optional `page` (default 1) and `pageSize` (default 10, maximum 50). Returns `{attempts, total, page, pageSize}` for finalized attempts, newest completion first with ID as a stable tie-breaker. Overdue attempts are settled first. |
+| GET /student/dashboard | STUDENT | Returns `{stats, activeAttempts, recentAttempts, scoreTrend}`. Recent attempts contain up to five entries. The trend is the latest 20 finalized scores ordered chronologically, with IDs, titles, completion times and percentages. |
+| GET /admin/attempts/:attemptId/result | ADMIN | Returns `{result, student: {id, name}}` for a finalized student attempt. An active or unknown attempt returns 404. |
+
+History summaries contain `id`, `quizTitle`, `finalizedAt`, `percentage`, `passed`, `elapsedSeconds` and `status`. A detailed result adds `totalQuestions`, `correctCount`, `incorrectCount`, `unansweredCount`, `maximumMarks`, `obtainedMarks`, and `review`. Review entries contain the question number, text, explanation, option IDs and text, selected option ID (or null), correct option ID, status (`CORRECT`, `INCORRECT`, or `UNANSWERED`), maximum question marks and awarded marks. Raw snapshot and answer-map fields are excluded. Legacy summaries retain their stored title, completion date, score and outcome. Missing metrics and review data are null.
+
+Dashboard `stats` contains `totalAttempts`, `passedAttempts`, `failedAttempts`, `averageScore`, `highestScore`, `answeredQuestions`, and `missingQuestionCounts`. Only finalized attempts count in statistics. Timed-out and legacy scores are included. Average and maximum are null for an empty history. Answered questions sum correct plus incorrect counts where available, with a separate tally of legacy attempts missing these counts.
