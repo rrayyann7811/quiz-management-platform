@@ -1,0 +1,25 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
+  "installCommand": "npm ci --include=dev",
+  "buildCommand": "npm run build -w frontend",
+  "outputDirectory": "frontend/dist",
+  "rewrites": [
+    { "source": "/login", "destination": "/index.html" },
+    { "source": "/register", "destination": "/index.html" },
+    { "source": "/forgot-password", "destination": "/index.html" },
+    { "source": "/reset-password", "destination": "/index.html" },
+    { "source": "/student/:path*", "destination": "/index.html" },
+    { "source": "/admin/:path*", "destination": "/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://quiz-management-platform-api.onrender.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'" },
+        { "key": "Referrer-Policy", "value": "no-referrer" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" }
+      ]
+    }
+  ]
+}

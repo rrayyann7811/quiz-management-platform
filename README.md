@@ -1,13 +1,26 @@
 # Quiz Management & Online Assessment Platform
 
-A React/Vite frontend and an Express REST API backed by PostgreSQL. The current checkpoint covers authentication, student administration, and quiz authoring and publishing. See [roadmap status](docs/ROADMAP_STATUS.md) for the remaining features.
+A React/Vite frontend and an Express REST API backed by PostgreSQL. The two roles are **ADMIN** and **STUDENT**.
+
+- Students discover published quizzes, resume timed attempts, save answers, review finalized results, track performance, and view leaderboards.
+- Administrators manage student accounts, author and publish quizzes, inspect historical results, view platform analytics, and manage leaderboard exclusions.
+- The server enforces deadlines, scoring, attempt limits, and access. PostgreSQL stores saved selections, score history, and immutable question snapshots.
+
+**Release status:** local portfolio demo. GitHub publication, hosted URLs, and live reset email remain unverified. See [roadmap status](docs/ROADMAP_STATUS.md).
+
+## Architecture
+
+- `frontend/` — React, Vite, Tailwind, React Router, Axios and Recharts.
+- `backend/` — Express API, Zod validation, bearer authentication, and Prisma/PostgreSQL.
+- `backend/prisma/migrations/` — version-controlled PostgreSQL migrations.
+- `docs/` and `.github/workflows/` — API and release notes, and the local-database CI workflow.
 
 ## Local setup
 
-Use Node.js 22.12 or newer and a running PostgreSQL instance. Create a database named `quiz_platform` or use another database you own.
+Use Node.js 24 LTS and a running PostgreSQL instance. Create a database named `quiz_platform` or use another database you own.
 
 ```sh
-npm ci
+npm ci --include=dev
 cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env
 ```
@@ -32,7 +45,7 @@ SEED_DEMO=1 npm run seed:demo -w backend
 
 The demo seed requires a local database named `quiz_platform` or a variant such as `quiz_platform_dev`. It creates quiz content and leaves existing accounts untouched.
 
-The reset email setup is in the [deployment notes](docs/DEPLOYMENT.md).
+Local configuration uses `DATABASE_URL`, `FRONTEND_ORIGIN`, and `PORT` on the API, and `VITE_API_URL` on the frontend. `RESEND_API_KEY` and `RESET_FROM` are private backend settings for real reset email. See [deployment notes](docs/DEPLOYMENT.md) for provider configuration and [security notes](docs/SECURITY.md) for trust boundaries and operational caveats.
 
 ## Verification
 
@@ -44,7 +57,7 @@ npm test
 npm run build
 ```
 
-The integration suite writes temporary fixtures to PostgreSQL and exercises the real HTTP application. Use a dedicated test database.
+The integration suite writes temporary fixtures to PostgreSQL and exercises the real HTTP application. Use a dedicated test database. The GitHub Actions workflow repeats migration, audit, tests, and build checks. Hosted CI has yet to run. See the [Day 7 evidence](docs/ROADMAP_STATUS.md#day-7-phase-a).
 
 - [API reference](docs/API.md)
 - [Implementation decisions](docs/DECISIONS.md)

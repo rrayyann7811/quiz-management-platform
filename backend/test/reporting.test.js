@@ -5,9 +5,9 @@ import { test } from 'node:test';
 import { createApp } from '../src/app.js';
 import { connectLocalTestDatabase } from '../testing/local-database.js';
 
-async function fixture(t) {
+async function fixture(t, reportingNow) {
   const db = await connectLocalTestDatabase();
-  const server = createApp({ db, origin: 'http://localhost:5173' }).listen(0, '127.0.0.1');
+  const server = createApp({ db, origin: 'http://localhost:5173', reportingNow }).listen(0, '127.0.0.1');
   await once(server, 'listening');
   const ids = { user: [], quiz: [], category: [] };
   const marker = randomUUID().slice(0, 8);
@@ -133,6 +133,10 @@ test('platform analytics uses persisted scores, UTC buckets, and historical cate
     [0, 2, 2, 70, 100]);
   assert.deepEqual([current.quizCount, current.totalAttempts, current.completedAttempts, current.averageScore, current.passPercentage],
     [3, 2, 1, 20, 0]);
+  await db.category.delete({ where: { id: oldCategory.id } });
+  const retained = (await request(path, admin)).categoryPerformance.rows.find(({ id }) => id === oldCategory.id);
+  assert.deepEqual([retained.name, retained.totalAttempts, retained.completedAttempts, retained.averageScore],
+    ['Unavailable category', 2, 2, 70]);
   const empty = await request('/admin/analytics?from=2005-01-01&to=2005-01-02&limit=1', admin);
   assert.ok(empty.attemptTrends.every(({ attempts }) => attempts === 0));
   assert.deepEqual(empty.quizPopularity, []);
@@ -222,4 +226,33 @@ test('leaderboard ranks best distinct scores, supports UTC periods and protects 
   assert.deepEqual(await request('/student/dashboard', a), studentBefore);
   await request(exclusionPath + '/' + a.id, admin, 200, { excluded: false });
   assert.ok(byName((await request(categoryPath, b)).entries, a));
+});
+
+
+test('calendar week and month filters use independent UTC start boundaries', async (t) => {
+  let now = new Date('2026-08-03T12:00:00Z'); // Monday, after the Saturday month boundary.
+  const { db, account, category, quiz, attempt, request } = await fixture(t, () => now);
+  const monthOnly = await account('Month only');
+  const weekOnly = await account('Week only');
+  const shared = await account('Both');
+  const historical = await category('Former category');
+  const current = await category('Current category');
+  const assessment = await quiz('Moved assessment', current.id, 'PUBLISHED');
+  const path = '/leaderboard?categoryId=' + historical.id;
+  await attempt(monthOnly, assessment, historical.id, 90, new Date('2026-08-01T00:00:00Z'));
+  await attempt(shared, assessment, historical.id, 80, new Date('2026-08-03T00:00:00Z'));
+  const entries = async (period) => (await request(path + '&period=' + period, shared)).entries.map(({ displayName }) => displayName);
+  assert.deepEqual(await entries('weekly'), [shared.name]);
+  assert.deepEqual(await entries('monthly'), [monthOnly.name, shared.name]);
+
+  now = new Date('2026-09-01T12:00:00Z'); // Tuesday, after the Monday week boundary.
+  await attempt(weekOnly, assessment, historical.id, 95, new Date('2026-08-31T00:00:00Z'));
+  await attempt(shared, assessment, historical.id, 80, new Date('2026-09-01T00:00:00Z'));
+  assert.deepEqual(await entries('weekly'), [weekOnly.name, shared.name]);
+  assert.deepEqual(await entries('monthly'), [shared.name]);
+
+  await db.category.delete({ where: { id: historical.id } });
+  assert.deepEqual(await entries('weekly'), [weekOnly.name, shared.name]);
+  const categories = await request('/leaderboard/categories', shared);
+  assert.match(categories.categories.find(({ id }) => id === historical.id).name, /^Unavailable category/);
 });

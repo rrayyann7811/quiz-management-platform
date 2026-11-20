@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import { spawnSync } from 'node:child_process';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { test } from 'node:test';
 import { connectLocalTestDatabase } from '../testing/local-database.js';
 import { createApp } from '../src/app.js';
@@ -29,6 +29,17 @@ test('authentication, role boundaries, password reset and archive preservation a
   try {
     await once(server, 'listening');
     assert.equal((await request('/health')).status, 200);
+    for (const requestOrigin of [origin, 'https://unrelated.example']) {
+      const preflight = await fetch(`http://127.0.0.1:${server.address().port}/api/auth/me`, {
+        method: 'OPTIONS',
+        headers: { Origin: requestOrigin, 'Access-Control-Request-Method': 'GET',
+          'Access-Control-Request-Headers': 'authorization,content-type' },
+      });
+      assert.equal(preflight.status, 204);
+      assert.equal(preflight.headers.get('access-control-allow-origin'), origin);
+      assert.match(preflight.headers.get('access-control-allow-headers'), /authorization/i);
+      assert.equal(preflight.headers.get('access-control-allow-credentials'), null);
+    }
     const foreign = await request('/health', { requestOrigin: 'https://unrelated.example' });
     assert.notEqual(foreign.headers.get('access-control-allow-origin'), 'https://unrelated.example');
     assert.equal((await request('/auth/register', { body: { ...student, role: 'ADMIN' } })).status, 400);
@@ -55,9 +66,25 @@ test('authentication, role boundaries, password reset and archive preservation a
     assert.equal((await request('/auth/logout', { method: 'POST', token })).status, 204);
     assert.equal((await request('/auth/me', { token })).status, 401);
 
+    const unknown = await request('/auth/forgot-password', { body: { email: 'unknown-' + suffix + '@example.test' } });
+    assert.equal(unknown.status, 202);
+    assert.equal(delivered.length, 0);
+    await request('/auth/forgot-password', { body: { email: student.email } });
+    const expired = delivered.pop()[1];
+    await db.passwordReset.update({
+      where: { digest: createHash('sha256').update(expired).digest('hex') },
+      data: { expiresAt: new Date(Date.now() - 1000) },
+    });
+    const expiredResult = await request('/auth/reset-password', { body: { token: expired, password: 'not-used-password' } });
+    const invalidResult = await request('/auth/reset-password', { body: { token: 'a'.repeat(64), password: 'not-used-password' } });
+    assert.equal(expiredResult.status, 400);
+    assert.equal(invalidResult.status, 400);
+    assert.deepEqual(expiredResult.data, invalidResult.data);
+
     const session = (await request('/auth/login', { body: credentials })).data.token;
     const resetRequest = await request('/auth/forgot-password', { body: { email: student.email } });
     assert.equal(resetRequest.status, 202);
+    assert.deepEqual(resetRequest.data, unknown.data);
     assert.equal(delivered.length, 1);
     const [[recipient, resetToken]] = delivered;
     assert.equal(recipient, student.email);

@@ -59,11 +59,22 @@ export function resultRoutes(app, db, authenticate, { withStudent, lockAttempt, 
     }).parse(req.query);
     const data = await withStudent(req, async (tx, userId) => {
       await settleActive(tx, userId, { expiredOnly: true });
-      const where = { userId, finalizedAt: { not: null } };
-      const attempts = await tx.attempt.findMany({
-        where, orderBy: byCompletion, skip: (page - 1) * pageSize, take: pageSize, select: summaryFields,
-      });
-      return { attempts: attempts.map(summary), total: await tx.attempt.count({ where }), page, pageSize };
+      const [history] = await tx.$queryRaw`
+        SELECT
+          (SELECT COUNT(*)::int FROM "Attempt" WHERE "userId" = ${userId}::uuid AND "finalizedAt" IS NOT NULL) AS total,
+          COALESCE((
+            SELECT jsonb_agg(to_jsonb(entries) ORDER BY entries."finalizedAt" DESC, entries.id DESC)
+            FROM (
+              SELECT id, "quizTitle", to_char("finalizedAt", 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "finalizedAt",
+                score AS percentage, passed, "elapsedSeconds", status
+              FROM "Attempt"
+              WHERE "userId" = ${userId}::uuid AND "finalizedAt" IS NOT NULL
+              ORDER BY "Attempt"."finalizedAt" DESC, id DESC
+              LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}
+            ) entries
+          ), '[]'::jsonb) AS attempts
+      `;
+      return { ...history, page, pageSize };
     });
     res.json(data);
   });

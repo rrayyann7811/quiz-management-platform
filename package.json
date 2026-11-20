@@ -1,12 +1,23 @@
 {
   "name": "quiz-management-platform",
   "private": true,
-  "workspaces": ["backend", "frontend"],
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
   "scripts": {
     "dev": "concurrently -k 'npm run dev -w backend' 'npm run dev -w frontend'",
     "build": "npm run build -w frontend",
     "test": "npm test -w backend && npm test -w frontend"
   },
-  "engines": {"node": ">=22.12"},
-  "devDependencies": {"concurrently": "^9.2.1"}
+  "engines": {
+    "node": ">=22.12"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  },
+  "overrides": {
+    "deepmerge-ts": "8.0.0",
+    "effect": "3.22.1"
+  }
 }

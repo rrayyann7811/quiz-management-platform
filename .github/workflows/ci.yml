@@ -27,8 +27,11 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - run: npm ci
+      - run: npm ci --include=dev
+      - run: npm audit --audit-level=high
+      - run: npm audit --omit=dev --audit-level=high
       - run: npm run generate -w backend
       - run: npm run migrate -w backend
+      - run: npm exec -w backend -- prisma migrate status
       - run: npm test
       - run: npm run build

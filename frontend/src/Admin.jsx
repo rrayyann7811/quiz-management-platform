@@ -1,19 +1,26 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { PlatformStats } from './Reporting.jsx';
+import { loadRequest } from './load-request.js';
 
 export function useRequest(api, path, params) {
-  const [state, setState] = useState({});
+  const key = JSON.stringify([path, params]);
+  const [entry, setEntry] = useState(null);
+  const state = entry?.key === key ? entry.state : {};
+  function setState(state) {
+    setEntry({ key, state });
+  }
+
   useEffect(() => {
     const controller = new AbortController();
-    setState({});
-    api.get(path, { params: params ? new URLSearchParams(params) : undefined, signal: controller.signal })
-      .then(({ data }) => setState({ data }))
-      .catch((error) => {
-        if (!controller.signal.aborted) setState({ error: error.response?.data?.message ?? 'Could not reach the server.' });
-      });
+    setEntry(null);
+    void loadRequest(
+      () => api.get(path, { params: params ? new URLSearchParams(params) : undefined, signal: controller.signal }),
+      controller.signal,
+      (state) => setEntry({ key, state }),
+    );
     return () => controller.abort();
-  }, [api, path, params]);
+  }, [api, path, params, key]);
   return [state, setState];
 }
 

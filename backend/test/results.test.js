@@ -75,7 +75,11 @@ test('finalized results, snapshot review, legacy history and performance are own
     await answer(first, 0);
     await answer(second, 1);
     now = new Date(now.getTime() + 19_000);
-    await request('POST', path + '/submit', student, {});
+    const [during] = await Promise.all([
+      request('GET', '/attempts?pageSize=50', student),
+      request('POST', path + '/submit', student, {}),
+    ]);
+    assert.equal(during.total, during.attempts.length);
     const { result } = await request('GET', resultPath, student);
     assert.equal(result.quizTitle, quiz.title);
     assert.equal(result.finalizedAt, now.toISOString());

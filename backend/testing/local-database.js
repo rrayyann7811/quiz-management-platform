@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { PrismaClient } from '@prisma/client';
 
 export async function connectLocalTestDatabase() {
+  assert.notEqual(process.env.NODE_ENV, 'production', 'Integration fixture writes are disabled in production mode.');
   const connection = new URL(process.env.TEST_DATABASE_URL ?? 'invalid:');
   const database = connection.pathname.slice(1);
   const loopback = ['127.0.0.1', '::1'];

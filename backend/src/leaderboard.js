@@ -12,14 +12,16 @@ const filters = z.strictObject({
   ...pagination, categoryId: uuid.optional(), period: z.enum(['overall', 'weekly', 'monthly']).default('overall'),
 });
 
-function periodFilter(period) {
+function periodFilter(period, reportingNow) {
   const periodUnit = { weekly: 'week', monthly: 'month' }[period];
   if (!periodUnit) return Prisma.empty;
-  return Prisma.sql`AND a."finalizedAt" >= date_trunc(${periodUnit}, CURRENT_TIMESTAMP AT TIME ZONE 'UTC')
-    AND a."finalizedAt" <= CURRENT_TIMESTAMP AT TIME ZONE 'UTC'`;
+  const now = reportingNow
+    ? Prisma.sql`${reportingNow().toISOString()}::timestamptz AT TIME ZONE 'UTC'`
+    : Prisma.sql`CURRENT_TIMESTAMP AT TIME ZONE 'UTC'`;
+  return Prisma.sql`AND a."finalizedAt" >= date_trunc(${periodUnit}, ${now}) AND a."finalizedAt" <= ${now}`;
 }
 
-export function leaderboardRoutes(app, db, authenticate) {
+export function leaderboardRoutes(app, db, authenticate, reportingNow) {
   const admin = [authenticate, requireRole('ADMIN')];
 
   app.get('/api/leaderboard/categories', authenticate, async (_req, res) => {
@@ -44,7 +46,7 @@ export function leaderboardRoutes(app, db, authenticate) {
         FROM "Attempt" a JOIN "User" u ON u.id = a."userId"
         WHERE a."quizId" IS NOT NULL AND a."finalizedAt" IS NOT NULL AND a.score IS NOT NULL
           AND u.role = 'STUDENT' AND u.active AND u."archivedAt" IS NULL AND NOT u."leaderboardExcluded"
-          ${scope} ${periodFilter(period)}
+          ${scope} ${periodFilter(period, reportingNow)}
         GROUP BY a."userId", a."quizId"
       ), scores AS (
         SELECT "userId", ROUND(AVG(best), 2) AS average, COUNT(*)::int AS completed, MAX(best) AS highest

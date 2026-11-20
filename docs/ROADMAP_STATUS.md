@@ -58,3 +58,30 @@
 - `TEST_DATABASE_URL=<verified-local-url> npm test` passed on both databases (six backend scenarios and one frontend unit test each). Reporting coverage includes role denial, publication and question counts, finalized scores, passing timeouts, date buckets, historical categories, archived quiz metrics, legacy data, rankings, tie ordering, period boundaries, filters, and exclusion isolation. The backend suite runs scenarios serially so platform count assertions have isolated fixtures.
 - `node /tmp/quiz-day6-browser-smoke.mjs` passed in headless Chrome using Vite, Express, and PostgreSQL. It verified a real submission, admin counts and three charts, date grouping and empty ranges, report navigation, rule display, exclusion and restore, student category and period filters, access denial, loading, and 390px/1366px layouts. Initial browser runs revealed filter-transition timing and chart resize sensitivity. The final flow tested controlled forms after each API response and checked layout after chart resizing settled.
 - `npm run build` and Git whitespace checks passed. Live reset email verification, the older local checksum discrepancy, and recorded Prisma CLI dependency findings remain open. Day 7 has yet to start.
+
+## Day 7 Phase A
+
+**Local verification PASS. Public release BLOCKED pending owner-approved targets and a verified email sender or explicit partial-release scope.** Day 7 remains open until Phase B and public smoke tests pass.
+
+| Gate | Status and evidence |
+| --- | --- |
+| Day 1 auth and roles | PASS locally. Tests cover registration, owner-only Admin provisioning, generic reset responses, expiry, one-time use, and session revocation. Chrome verified reset-link reload and rejected expired sessions on a protected request. Local CORS tested allowed and foreign origins. |
+| Day 2 student administration | PASS locally. Integration and extended Chrome smoke verified profile access, deactivation, archive, and preservation of completed attempt history and review. |
+| Day 3 authoring | PASS locally. Integration and Chrome verified category/quiz/MCQ CRUD, validation, publication, unpublication, and archive. |
+| Day 4 attempts and timer | PASS locally. Integration and Chrome verified concurrent starts and save/submit, weighted scoring, server expiry after restart, answers restored after refresh, second-tab continuation, late-save rejection and duplicate submission. |
+| Day 5 results and dashboard | PASS locally. Integration and Chrome verified ownership, snapshots, legacy summaries, result review/refresh, history and charts. History page and count now use one database statement snapshot. |
+| Day 6 analytics and ranking | PASS locally. Tests cover weekly/monthly UTC boundaries independently, deleted-category history, roles, ties, and exclusion isolation. Frontend regression rejects stale successes and failures. Chrome verified real reports, chart/data filters, exclusions, restored rankings, and role denial. |
+| Local database and dependencies | PASS. Verified a fresh loopback `quiz_platform_day7_test` database. All five original migration files applied unchanged, status was up to date. Both final dependency audits reported zero advisories after targeted overrides. |
+| Local release build, browser and security | PASS. Clean root workspace install, Prisma generation, root API start/health, production Vite build, protected direct SPA routes, 390px through 1366px viewports, input errors and empty/loading states. Redacted Git and file scans found no secrets. |
+| Documentation and CI configuration | PASS locally. Deployment plan, security notes, README, examples, screenshot plan, and Actions workflow are prepared. Hosted Actions remains NOT VERIFIED. |
+| Hosted database, API, frontend, and email | NOT VERIFIED. No publication or provisioning was performed. Owner confirmation of the exact destinations and sender remains pending. |
+
+### Executed checks
+
+- `npm ci --include=dev`, `npm run generate -w backend`, `npm run migrate -w backend`, and `npm exec -w backend -- prisma migrate status` exited 0 in the clean release copy against the verified local test setup. The API command `npm run start -w backend` served real database-backed health on the supplied port.
+- `npm test` exited 0 with 7 backend and 3 frontend tests. `npm run build -w frontend`, JavaScript syntax checks, and `git diff --check` exited 0. The test guard rejected production mode and non-loopback targets.
+- `npm audit --audit-level=high` and `npm audit --omit=dev --audit-level=high` initially exited 1. Both exited 0 after remediation with zero advisories. [Audit disposition](SECURITY.md#dependency-audit-disposition)
+- Five local Chrome smoke harnesses exited 0. They used the built frontend or Vite, Express, and a verified local PostgreSQL database. One harness loaded the built output with the checked-in SPA rules and local API CSP equivalent. Reset used an in-memory inbox. This verifies app behavior and does not verify delivery or hosted routing.
+- Gitleaks 8.30.1 scanned all reachable Git history and the reviewed file tree with redaction. Local ignored paths and migration files were checked. The Day 1 mismatch is confined to an older local test database previously shown to differ by a trailing newline. Production migration history remains a separate verification gate.
+
+See the [deployment plan](DEPLOYMENT.md) for proposed names, limits, environment variables, migration safety, and Phase B acceptance steps.

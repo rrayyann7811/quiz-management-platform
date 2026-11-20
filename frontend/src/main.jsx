@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Link, Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
@@ -14,11 +14,6 @@ import './style.css';
 
 const api = axios.create({ baseURL: import.meta.env.VITE_API_URL || 'http://localhost:4000/api', timeout: 15000 });
 const sessionKey = 'quiz-session';
-const resetToken = new URLSearchParams(window.location.hash.slice(1)).get('token');
-if (window.location.pathname === '/reset-password' && resetToken) {
-  window.history.replaceState(null, '', window.location.pathname);
-}
-
 const forms = {
   login: { heading: 'Sign in', action: 'Sign in', fields: ['email', 'password'] },
   register: { heading: 'Create a student account', action: 'Create account', fields: ['name', 'email', 'password'] },
@@ -31,7 +26,8 @@ function AuthForm({ mode, onLogin, onReset }) {
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm();
   const [feedback, setFeedback] = useState(null);
   const navigate = useNavigate();
-  const { state } = useLocation();
+  const { state, hash } = useLocation();
+  const resetToken = mode === 'reset-password' ? new URLSearchParams(hash.slice(1)).get('token') : null;
   const linkMissing = mode === 'reset-password' && !resetToken;
 
   async function submit(values) {
@@ -43,7 +39,7 @@ function AuthForm({ mode, onLogin, onReset }) {
       else if (mode === 'forgot-password') setFeedback({ text: data.message });
       else {
         if (mode === 'reset-password') onReset();
-        navigate('/login', { state: { message: mode === 'register' ? 'Account created. You can now sign in.' : 'Password updated. You can now sign in.' } });
+        navigate('/login', { replace: mode === 'reset-password', state: { message: mode === 'register' ? 'Account created. You can now sign in.' : 'Password updated. You can now sign in.' } });
       }
     } catch (error) {
       setFeedback({ error: true, text: error.response?.data?.message ?? 'Could not reach the server. Try again.' });
@@ -129,11 +125,21 @@ function App() {
   const [user, setUser] = useState(null);
   const [status, setStatus] = useState('loading');
 
-  function clearSession() {
+  const clearSession = useCallback(() => {
     sessionStorage.removeItem(sessionKey);
     delete api.defaults.headers.common.Authorization;
     setUser(null);
-  }
+  }, []);
+
+  useEffect(() => {
+    const interceptor = api.interceptors.response.use(undefined, (error) => {
+      const token = sessionStorage.getItem(sessionKey);
+      const sent = error.config?.headers?.get('Authorization');
+      if (error.response?.status === 401 && token && sent === 'Bearer ' + token) clearSession();
+      return Promise.reject(error);
+    });
+    return () => api.interceptors.response.eject(interceptor);
+  }, [clearSession]);
 
   useEffect(() => {
     const token = sessionStorage.getItem(sessionKey);
@@ -151,7 +157,7 @@ function App() {
         setStatus('ready');
       } else setStatus('offline');
     });
-  }, []);
+  }, [clearSession]);
 
   function login(data) {
     sessionStorage.setItem(sessionKey, data.token);
