@@ -20,8 +20,10 @@ model User {
   role         Role            @default(STUDENT)
   active       Boolean         @default(true)
   createdAt    DateTime        @default(now())
+  archivedAt   DateTime?
   sessions     Session[]
   resets       PasswordReset[]
+  attempts     Attempt[]
 }
 
 model Session {
@@ -40,4 +42,17 @@ model PasswordReset {
   expiresAt DateTime
 
   @@index([userId])
+}
+
+model Attempt {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @db.Uuid
+  user        User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  quizTitle   String
+  startedAt   DateTime
+  finalizedAt DateTime
+  score       Decimal  @db.Decimal(5, 2)
+  passed      Boolean
+
+  @@index([userId, finalizedAt, id])
 }

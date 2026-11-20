@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import { PrismaClient } from '@prisma/client';
 import { createApp } from '../src/app.js';
 
-test('authentication, role boundaries and password reset against PostgreSQL', async () => {
+test('authentication, role boundaries, password reset and archive preservation against PostgreSQL', async () => {
   const url = process.env.TEST_DATABASE_URL;
   assert.ok(url, 'Set TEST_DATABASE_URL to an isolated migrated test database.');
   const db = new PrismaClient({ datasourceUrl: url });
@@ -91,9 +91,47 @@ test('authentication, role boundaries and password reset against PostgreSQL', as
     assert.equal(after.data.inactive, before.data.inactive + 1);
     assert.equal((await statusChange(adminToken, true)).data.user.active, true);
     assert.equal((await request('/auth/me', { token: renewed.data.token })).status, 401);
-    assert.equal((await request('/auth/login', { body: { ...credentials, password } })).status, 200);
+    const signedIn = await request('/auth/login', { body: { ...credentials, password } });
+    assert.equal(signedIn.status, 200);
+    const historyPath = profile + '/attempts';
+    const archive = (token) => request(profile, { token, method: 'DELETE' });
+    const empty = await request(historyPath, { token: adminToken });
+    assert.equal(empty.status, 200);
+    assert.deepEqual(empty.data.attempts, []);
+    const attempt = await db.attempt.create({ data: {
+      userId: studentId, quizTitle: 'Test assessment',
+      startedAt: new Date('2026-01-01T10:00:00Z'), finalizedAt: new Date('2026-01-01T10:10:00Z'),
+      score: 83.25, passed: true,
+    } });
+    assert.equal((await request(historyPath, { token: signedIn.data.token })).status, 403);
+    assert.equal((await archive(signedIn.data.token)).status, 403);
+    assert.equal((await request('/users/' + privileged.data.user.id + '/attempts', { token: adminToken })).status, 404);
+    const historyBefore = await request(historyPath, { token: adminToken });
+    assert.equal(historyBefore.status, 200);
+    assert.deepEqual(historyBefore.data, { attempts: [{
+      id: attempt.id, quizTitle: 'Test assessment', startedAt: attempt.startedAt.toISOString(),
+      finalizedAt: attempt.finalizedAt.toISOString(), score: 83.25, passed: true,
+    }], total: 1, page: 1, pageSize: 25 });
+    const secondPage = await request(historyPath + '?page=2', { token: adminToken });
+    assert.equal(secondPage.status, 200);
+    assert.deepEqual(secondPage.data.attempts, []);
+
+    const archived = await archive(adminToken);
+    assert.equal(archived.status, 200);
+    assert.ok(archived.data.user.archivedAt);
+    assert.equal(archived.data.user.active, false);
+    assert.deepEqual((await archive(adminToken)).data, archived.data);
+    assert.equal((await statusChange(adminToken, true)).status, 409);
+    assert.equal((await request('/auth/me', { token: signedIn.data.token })).status, 401);
+    assert.equal((await request('/auth/login', { body: { ...credentials, password } })).status, 401);
+    const historyAfter = await request(historyPath, { token: adminToken });
+    assert.equal(historyAfter.status, 200);
+    assert.deepEqual(historyAfter.data, historyBefore.data);
+    assert.deepEqual(await db.attempt.findUnique({ where: { id: attempt.id } }), attempt);
+    await assert.rejects(db.user.delete({ where: { id: studentId } }), /Attempt_userId_fkey/);
   } finally {
     await new Promise((resolve) => server.close(resolve));
+    await db.attempt.deleteMany({ where: { user: { email: student.email } } });
     await db.user.deleteMany({ where: { email: { in: [student.email, admin.email] } } });
     await db.$disconnect();
   }

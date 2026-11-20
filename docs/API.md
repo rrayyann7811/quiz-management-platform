@@ -17,13 +17,17 @@ The user object includes `id`, `name`, `email`, and `role`. Errors return `{mess
 
 ## Student administration
 
-These routes require an ADMIN session. Student responses include `active` and `createdAt` in addition to the public user fields.
+These routes require an ADMIN session. Student responses include `active`, `createdAt`, and `archivedAt` in addition to the public user fields.
 
 | Method and path | Request and successful response |
 | --- | --- |
-| GET /admin/dashboard | 200 with `{total, active, inactive}` student counts. |
+| GET /admin/dashboard | 200 with `{total, active, inactive, archived}` student counts. The inactive count covers deactivated accounts. |
 | GET /users | Optional `search` (case-insensitive name/email) and `page` (starts at 1). Returns `{users, total, page, pageSize}`. |
 | GET /users/:id | UUID path parameter. Returns `{user}` for a student. |
+| GET /users/:id/attempts | UUID and optional `page` (starts at 1). Returns `{attempts, total, page, pageSize}` with completed attempt summaries ordered newest first. |
+| DELETE /users/:id | Archives the student, revokes sessions and reset links, and returns `{user}`. Repeat calls return the existing archived account. |
 | PATCH /users/:id/status | UUID path parameter and `{active: boolean}`. Returns `{user}`. Deactivation revokes sessions and reset links. |
 
 Unknown student UUIDs and administrator UUIDs return 404. Invalid IDs return 400.
+
+Attempt summaries contain `id`, `quizTitle`, `startedAt`, `finalizedAt`, numeric percentage `score`, and `passed`. Archived students remain visible to admins with their history. Changing an archived account’s status returns 409.

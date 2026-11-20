@@ -1,7 +1,7 @@
 # Seven-day roadmap
 
 - [x] Day 1. Workspace scaffold, PostgreSQL migration, environment examples, owner provisioning and seed plan, authentication API and reset integration, shared dashboard layout, setup documentation.
-- [ ] Day 2. Role middleware and dashboard guards, database-backed admin statistics, student search, profile, history and account status controls.
+- [x] Day 2. Role middleware and dashboard guards, database-backed admin statistics, student search, profile, history and account status controls.
 - [ ] Day 3. Category, quiz and MCQ CRUD, preview, publish validation and demo content.
 - [ ] Day 4. Student discovery, eligibility, timed attempts, saved answers and scoring.
 - [ ] Day 5. Results, review, history, student dashboard and history integrity verification.
@@ -17,9 +17,10 @@
 - Dependency scan reported four high-severity findings in the Prisma CLI development dependency tree. Resolve and recheck before release.
 - Next day is Day 2. Reuse the Day 1 authentication middleware for the admin/student role guard and verify status transitions with the local test database.
 
-## Day 2 checkpoint (PARTIAL)
+## Day 2 checkpoint
 
-- Implemented reusable API role middleware, nested React role guards, admin dashboard account totals, paginated student search and profiles, and activate/deactivate controls.
-- `npm run build` passed. The PostgreSQL integration scenario verifies student access is denied for admin operations, search and profile behavior, database-backed totals, and revocation of sessions on deactivation. React screens have no browser test evidence yet.
-- Pending student attempt history and archive behavior verification with existing attempts. These require the assessment records introduced later in the roadmap. No attempt history UI or fabricated attempt data was added.
-- Next action is to resolve the Day 2 history dependency and finish its remaining verification before beginning Day 3.
+- Implemented API role middleware, React role guards, database-backed account totals, paginated student search, profiles, and activation controls.
+- Added paginated completed attempt history to the admin student profile and a separate archive action. The archive timestamp preserves the account and the PostgreSQL foreign key protects attempts from hard deletion.
+- Applied `20261120010000_attempt_history` with `npm run migrate -w backend` against the existing local test database. `npm test` verified identical attempt history before and after archiving, idempotent archival, revoked access, blocked reactivation and restricted hard deletion. The test uses a temporary completed attempt fixture and deletes it at cleanup.
+- `npm run build` and `git diff --check` passed. Browser interaction and live reset email delivery remain unverified.
+- Next day is Day 3, starting with category and quiz authoring and publish validation.

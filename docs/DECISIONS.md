@@ -6,3 +6,6 @@
 - Owner-only provisioning accepts environment variables. Demo quiz seeding is planned for Day 3 as a repeatable, development-only script with no precomputed attempt history.
 - History design for Days 4–5 will snapshot question and option content, marking data, and quiz metadata when an attempt starts. Keep archived records available to historical views.
 - Deactivating a student preserves the user record and revokes sessions and reset links in the same transaction. Reactivation lets the student sign in again with a new session.
+
+- Day 2 stores completed attempt summaries in the `Attempt` table so the admin profile can read actual PostgreSQL records. The quiz title is stored on the attempt and the student foreign key restricts hard deletion. The scoring and active-attempt lifecycle arrive in Day 4.
+- Archiving records a timestamp, disables the account, and revokes sessions and reset links atomically. An archived account remains visible to admins for historical review and cannot be activated through the ordinary status endpoint.

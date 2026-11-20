@@ -24,8 +24,8 @@ export function AdminSummary({ api }) {
   const [state] = useRequest(api, '/admin/dashboard');
   if (!state.data) return loading(state);
   return (
-    <dl className="mt-6 grid gap-4 sm:grid-cols-3">
-      {Object.entries({ total: 'Total students', active: 'Active accounts', inactive: 'Deactivated accounts' }).map(([key, label]) => (
+    <dl className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {Object.entries({ total: 'Total students', active: 'Active accounts', inactive: 'Deactivated accounts', archived: 'Archived accounts' }).map(([key, label]) => (
         <div className="card" key={key}>
           <dt className="text-sm text-slate-600">{label}</dt>
           <dd className="mt-2 text-2xl font-semibold">{state.data[key]}</dd>
@@ -33,6 +33,11 @@ export function AdminSummary({ api }) {
       ))}
     </dl>
   );
+}
+
+function accountStatus(user) {
+  if (user.archivedAt) return 'Archived';
+  return user.active ? 'Active' : 'Deactivated';
 }
 
 export function StudentList({ api }) {
@@ -63,7 +68,7 @@ export function StudentList({ api }) {
                   <tr key={user.id} className="border-t border-slate-200">
                     <td className="p-3"><Link to={user.id}>{user.name}</Link></td>
                     <td className="p-3">{user.email}</td>
-                    <td className="p-3">{user.active ? 'Active' : 'Deactivated'}</td>
+                    <td className="p-3">{accountStatus(user)}</td>
                   </tr>
                 ))}</tbody>
               </table>
@@ -88,11 +93,14 @@ export function StudentProfile({ api }) {
   const [saving, setSaving] = useState(false);
   if (!state.data) return loading(state);
   const { user } = state.data;
-  async function updateStatus() {
+  async function updateStatus(archive = false) {
+    if (archive && !window.confirm('Archive this account? The student will lose access and their attempt history will be retained.')) return;
     setError('');
     setSaving(true);
     try {
-      const { data } = await api.patch(path + '/status', { active: !user.active });
+      const { data } = archive
+        ? await api.delete(path)
+        : await api.patch(path + '/status', { active: !user.active });
       setState({ data });
     } catch (error) {
       setError(error.response?.data?.message ?? 'Could not update the account.');
@@ -107,10 +115,56 @@ export function StudentProfile({ api }) {
       <dl className="card mt-5 max-w-lg space-y-3">
         <div><dt className="text-sm text-slate-600">Email</dt><dd>{user.email}</dd></div>
         <div><dt className="text-sm text-slate-600">Registered</dt><dd>{new Date(user.createdAt).toLocaleDateString()}</dd></div>
-        <div><dt className="text-sm text-slate-600">Status</dt><dd aria-live="polite">{user.active ? 'Active' : 'Deactivated'}</dd></div>
+        <div><dt className="text-sm text-slate-600">Status</dt><dd aria-live="polite">{accountStatus(user)}</dd></div>
       </dl>
-      <button className="button mt-5" onClick={updateStatus} disabled={saving}>{user.active ? 'Deactivate account' : 'Activate account'}</button>
+      {!user.archivedAt && (
+        <div className="mt-5 flex flex-wrap gap-3">
+          <button className="button" onClick={() => updateStatus()} disabled={saving}>{user.active ? 'Deactivate account' : 'Activate account'}</button>
+          <button className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm hover:bg-slate-100 disabled:opacity-60" onClick={() => updateStatus(true)} disabled={saving}>Archive account</button>
+        </div>
+      )}
       {error && <p role="alert" className="mt-3 text-red-700">{error}</p>}
+      <AttemptHistory api={api} path={path} />
     </>
+  );
+}
+
+function AttemptHistory({ api, path }) {
+  const [page, setPage] = useState(1);
+  const [state] = useRequest(api, path + '/attempts', 'page=' + page);
+  return (
+    <section className="mt-8" aria-labelledby="attempt-history">
+      <h2 id="attempt-history" className="mb-4 text-xl font-semibold">Attempt history</h2>
+      {!state.data ? loading(state) : (
+        <>
+          {state.data.attempts.length ? (
+            <div className="overflow-x-auto rounded-md border border-slate-200 bg-white">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-slate-100">
+                  <tr>{['Quiz', 'Completed', 'Score', 'Result'].map((label) => <th key={label} scope="col" className="p-3">{label}</th>)}</tr>
+                </thead>
+                <tbody>
+                  {state.data.attempts.map((attempt) => (
+                    <tr key={attempt.id} className="border-t border-slate-200">
+                      <td className="p-3">{attempt.quizTitle}</td>
+                      <td className="p-3">{new Date(attempt.finalizedAt).toLocaleString()}</td>
+                      <td className="p-3">{attempt.score}%</td>
+                      <td className="p-3">{attempt.passed ? 'Passed' : 'Failed'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : <p>No completed attempts.</p>}
+          {state.data.total > state.data.pageSize && (
+            <nav className="mt-4 flex items-center gap-4 text-sm" aria-label="Attempt history pages">
+              <button className="button" disabled={page === 1} onClick={() => setPage(page - 1)}>Previous</button>
+              <span>Page {page} of {Math.ceil(state.data.total / state.data.pageSize)}</span>
+              <button className="button" disabled={page * state.data.pageSize >= state.data.total} onClick={() => setPage(page + 1)}>Next</button>
+            </nav>
+          )}
+        </>
+      )}
+    </section>
   );
 }
