@@ -6,7 +6,7 @@ A React/Vite frontend and an Express REST API backed by PostgreSQL. The two role
 - Administrators manage student accounts, author and publish quizzes, inspect historical results, view platform analytics, and manage leaderboard exclusions.
 - The server enforces deadlines, scoring, attempt limits, and access. PostgreSQL stores saved selections, score history, and immutable question snapshots.
 
-**Release status:** local portfolio demo. Hosted URLs remain unverified. Email-based password reset is temporarily unavailable without a verified sender. See [roadmap status](docs/ROADMAP_STATUS.md).
+**Release status:** [public source repository](https://github.com/rrayyann7811/quiz-management-platform). Hosted application URLs remain unverified. Email-based password reset is temporarily unavailable without a verified sender. See [roadmap status](docs/ROADMAP_STATUS.md).
 
 ## Architecture
 
