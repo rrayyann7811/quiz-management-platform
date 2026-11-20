@@ -31,3 +31,32 @@ These routes require an ADMIN session. Student responses include `active`, `crea
 Unknown student UUIDs and administrator UUIDs return 404. Invalid IDs return 400.
 
 Attempt summaries contain `id`, `quizTitle`, `startedAt`, `finalizedAt`, numeric percentage `score`, and `passed`. Archived students remain visible to admins with their history. Changing an archived account’s status returns 409.
+
+## Quiz authoring
+
+All endpoints require a session. The list and detail endpoints available to students return only published, non-archived quiz metadata. The question endpoints are administrator-only, including reads.
+
+| Method and path | Access | Request and successful response |
+| --- | --- | --- |
+| GET /categories | ADMIN, STUDENT | `{categories}`. Students see categories with visible quizzes. |
+| POST /categories | ADMIN | `{name}` → 201 with `{category}`. |
+| GET /categories/:id | ADMIN | `{category, quizzes}` with non-archived quizzes in the category. |
+| PATCH /categories/:id | ADMIN | `{name}` → `{category}`. |
+| DELETE /categories/:id | ADMIN | 204. A category referenced by any quiz returns 409. |
+| GET /quizzes | ADMIN, STUDENT | Optional UUID `categoryId` filter → `{quizzes}`. |
+| GET /quizzes/:id | ADMIN, STUDENT | `{quiz}`, including the question count in `_count.questions`. |
+| POST /quizzes | ADMIN | Quiz payload → 201 with `{quiz}` in DRAFT status. |
+| PATCH /quizzes/:id | ADMIN | Full quiz payload → `{quiz}`. Available while draft or unpublished. |
+| DELETE /quizzes/:id | ADMIN | 204. Archives and unpublishes the quiz. |
+| POST /quizzes/:id/publish | ADMIN | `{published: boolean}` → `{quiz}`. A quiz that fails publication checks returns 422. |
+| GET /quizzes/:quizId/questions | ADMIN | `{questions}` with the correct options and explanations for preview. |
+| POST /quizzes/:quizId/questions | ADMIN | Question payload → 201 with `{question}`. |
+| GET /questions/:id | ADMIN | `{question}` with its ordered options. |
+| PATCH /questions/:id | ADMIN | Full question payload including the replacement option set → `{question}`. |
+| DELETE /questions/:id | ADMIN | 204. Deletes the question and its options. |
+
+Category names are trimmed, 2–80 characters, and unique case-insensitively. The quiz payload includes `title`, `description`, `categoryId`, `difficulty`, `durationMinutes` (1–240), `passingPercent` (0–100), `maxAttempts` (1–20), and optional `thumbnailUrl` (HTTP(S) URL or null). Difficulty is `EASY`, `MEDIUM`, or `HARD`. Status transitions use the publish endpoint.
+
+The question payload includes `text`, `explanation`, `difficulty`, `marks` (1–100), and 2–6 `options` in display order. Each option contains `text` and boolean `isCorrect`. Exactly one option must be correct. Editing the question replaces the previous option set transactionally.
+
+Malformed input returns 400. Missing records and quizzes hidden from students return 404. Student calls to administrator-only endpoints return 403. Duplicate categories, category deletion with references, and attempts to edit published quizzes return 409.

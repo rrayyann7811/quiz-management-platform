@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 
-function useRequest(api, path, params) {
+export function useRequest(api, path, params) {
   const [state, setState] = useState({});
   useEffect(() => {
     const controller = new AbortController();

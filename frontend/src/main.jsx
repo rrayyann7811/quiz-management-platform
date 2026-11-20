@@ -4,6 +4,7 @@ import { BrowserRouter, Link, Navigate, Outlet, Route, Routes, useLocation, useN
 import { useForm } from 'react-hook-form';
 import axios from 'axios';
 import { AdminSummary, StudentList, StudentProfile } from './Admin.jsx';
+import { Categories, NewQuiz, QuizEditor, QuizList } from './Authoring.jsx';
 import './style.css';
 
 const api = axios.create({ baseURL: import.meta.env.VITE_API_URL || 'http://localhost:4000/api', timeout: 15000 });
@@ -97,7 +98,11 @@ function Dashboard({ user, onLogout }) {
         <p className="mb-5 font-semibold">Quiz Management</p>
         <nav className="flex flex-wrap gap-4 md:flex-col" aria-label="Dashboard">
           <Link to={user.role === 'ADMIN' ? '/admin' : '/student'}>Dashboard</Link>
-          {user.role === 'ADMIN' && <Link to="/admin/students">Students</Link>}
+          {user.role === 'ADMIN' && <>
+            <Link to="/admin/students">Students</Link>
+            <Link to="/admin/categories">Categories</Link>
+            <Link to="/admin/quizzes">Quizzes</Link>
+          </>}
         </nav>
         <button className="button mt-6" onClick={logout} disabled={busy}>Sign out</button>
         {error && <p className="mt-2 text-sm text-red-700" role="alert">{error}</p>}
@@ -158,6 +163,10 @@ function App() {
       ))}
       <Route path="/admin" element={user?.role === 'ADMIN' ? <Dashboard user={user} onLogout={logout} /> : <Navigate to={home} replace />}>
         <Route index element={<><h1 className="text-2xl font-semibold">Admin dashboard</h1><AdminSummary api={api} /></>} />
+        <Route path="categories" element={<Categories api={api} />} />
+        <Route path="quizzes" element={<QuizList api={api} />} />
+        <Route path="quizzes/new" element={<NewQuiz api={api} />} />
+        <Route path="quizzes/:id" element={<QuizEditor key={location.pathname} api={api} />} />
         <Route path="students" element={<StudentList api={api} />} />
         <Route path="students/:id" element={<StudentProfile key={location.pathname} api={api} />} />
       </Route>

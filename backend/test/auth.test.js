@@ -3,13 +3,12 @@ import { once } from 'node:events';
 import { spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { test } from 'node:test';
-import { PrismaClient } from '@prisma/client';
+import { connectLocalTestDatabase } from '../testing/local-database.js';
 import { createApp } from '../src/app.js';
 
 test('authentication, role boundaries, password reset and archive preservation against PostgreSQL', async () => {
   const url = process.env.TEST_DATABASE_URL;
-  assert.ok(url, 'Set TEST_DATABASE_URL to an isolated migrated test database.');
-  const db = new PrismaClient({ datasourceUrl: url });
+  const db = await connectLocalTestDatabase();
   const origin = 'http://localhost:5173';
   const delivered = [];
   const server = createApp({ db, origin, sendReset: async (...message) => delivered.push(message) }).listen(0, '127.0.0.1');

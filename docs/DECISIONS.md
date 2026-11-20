@@ -9,3 +9,10 @@
 
 - Day 2 stores completed attempt summaries in the `Attempt` table so the admin profile can read actual PostgreSQL records. The quiz title is stored on the attempt and the student foreign key restricts hard deletion. The scoring and active-attempt lifecycle arrive in Day 4.
 - Archiving records a timestamp, disables the account, and revokes sessions and reset links atomically. An archived account remains visible to admins for historical review and cannot be activated through the ordinary status endpoint.
+
+## Day 3 authoring
+
+- Categories use a case-insensitive unique index. Deleting a referenced category is blocked, including references from archived quizzes. Quiz deletion sets an archive timestamp and removes the quiz from all authoring and student lists.
+- Admins unpublish a quiz before editing quiz metadata or questions. Quiz changes and question mutations acquire the same PostgreSQL row lock used during publication so a content edit cannot invalidate a concurrent publish. SQL constraints bound numeric settings and enforce at most one correct option per question. Question writes and publication checks enforce the minimum of two options and exactly one correct option.
+- Quiz list and detail responses use an explicit metadata projection. Correct flags and explanations appear only in the administrator question endpoints. The existing completed attempt summary is independent of authored content. Day 4 will handle assessment snapshots for durable question-level review.
+- Demo content uses stable quiz keys so repeat runs preserve edits and archived records. Seeding requires explicit opt-in and a local quiz database, refuses production mode, and creates no accounts or attempts.

@@ -5,6 +5,7 @@ import { rateLimit } from 'express-rate-limit';
 import { ZodError } from 'zod';
 import { authRoutes } from './auth.js';
 import { userRoutes } from './users.js';
+import { AuthoringError, authoringRoutes } from './authoring.js';
 
 export function createApp({ db, origin, proxyHops = 0, sendReset }) {
   const app = express();
@@ -31,8 +32,12 @@ export function createApp({ db, origin, proxyHops = 0, sendReset }) {
   }));
 
   userRoutes(app, db, authenticate);
+  authoringRoutes(app, db, authenticate);
   app.use((_req, res) => res.status(404).json({ message: 'Route not found.' }));
   app.use((error, _req, res, _next) => {
+    if (error instanceof AuthoringError) {
+      return res.status(error.status).json({ message: error.message });
+    }
     if (error instanceof ZodError) {
       return res.status(400).json({
         message: error.issues[0].message,

@@ -56,3 +56,73 @@ model Attempt {
 
   @@index([userId, finalizedAt, id])
 }
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum QuizStatus {
+  DRAFT
+  PUBLISHED
+  UNPUBLISHED
+}
+
+model Category {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  quizzes   Quiz[]
+}
+
+model Quiz {
+  id              String     @id @default(uuid()) @db.Uuid
+  title           String
+  description     String
+  categoryId      String     @db.Uuid
+  category        Category   @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  difficulty      Difficulty
+  durationMinutes Int
+  passingPercent  Int
+  maxAttempts     Int
+  status          QuizStatus @default(DRAFT)
+  thumbnailUrl    String?
+  archivedAt      DateTime?
+  demoKey         String?    @unique
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  questions       Question[]
+
+  @@index([categoryId])
+  @@index([status, archivedAt])
+}
+
+model Question {
+  id          String     @id @default(uuid()) @db.Uuid
+  quizId      String     @db.Uuid
+  quiz        Quiz       @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  text        String
+  explanation String
+  marks       Int
+  difficulty  Difficulty
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  options     Option[]
+
+  @@index([quizId, createdAt, id])
+}
+
+model Option {
+  id         String   @id @default(uuid()) @db.Uuid
+  questionId String   @db.Uuid
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  text       String
+  isCorrect  Boolean
+  position   Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([questionId, position])
+}
