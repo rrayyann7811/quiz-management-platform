@@ -16,3 +16,10 @@
 - PARTIAL verification for reset delivery, which requires a verified Resend domain and sending key. Token handling passed with a test callback.
 - Dependency scan reported four high-severity findings in the Prisma CLI development dependency tree. Resolve and recheck before release.
 - Next day is Day 2. Reuse the Day 1 authentication middleware for the admin/student role guard and verify status transitions with the local test database.
+
+## Day 2 checkpoint (PARTIAL)
+
+- Implemented reusable API role middleware, nested React role guards, admin dashboard account totals, paginated student search and profiles, and activate/deactivate controls.
+- `npm run build` passed. The PostgreSQL integration scenario verifies student access is denied for admin operations, search and profile behavior, database-backed totals, and revocation of sessions on deactivation. React screens have no browser test evidence yet.
+- Pending student attempt history and archive behavior verification with existing attempts. These require the assessment records introduced later in the roadmap. No attempt history UI or fabricated attempt data was added.
+- Next action is to resolve the Day 2 history dependency and finish its remaining verification before beginning Day 3.

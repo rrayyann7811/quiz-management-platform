@@ -75,17 +75,21 @@ export function authRoutes(app, db, sendReset, limiter) {
       const user = await db.user.findUnique({ where: { email: input.email } });
       if (user?.active) {
         const value = issueToken();
-        await db.$transaction(async (tx) => {
-          await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${user.id}::uuid FOR UPDATE`;
+        const issued = await db.$transaction(async (tx) => {
+          const locked = await tx.$queryRaw`SELECT active FROM "User" WHERE id = ${user.id}::uuid FOR UPDATE`;
+          if (!locked[0]?.active) return false;
           await tx.passwordReset.deleteMany({ where: { userId: user.id, expiresAt: { lte: new Date() } } });
           await tx.passwordReset.create({
             data: { digest: digest(value), userId: user.id, expiresAt: new Date(Date.now() + 30 * 60_000) },
           });
+          return true;
         });
-        try {
-          await sendReset(user.email, value);
-        } catch {
-          console.error('Password reset email delivery failed.');
+        if (issued) {
+          try {
+            await sendReset(user.email, value);
+          } catch {
+            console.error('Password reset email delivery failed.');
+          }
         }
       }
     }

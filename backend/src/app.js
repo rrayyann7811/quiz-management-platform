@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
 import { ZodError } from 'zod';
 import { authRoutes } from './auth.js';
+import { userRoutes } from './users.js';
 
 export function createApp({ db, origin, proxyHops = 0, sendReset }) {
   const app = express();
@@ -29,10 +30,7 @@ export function createApp({ db, origin, proxyHops = 0, sendReset }) {
     message: { message: 'Too many authentication requests. Try again later.' },
   }));
 
-  app.get('/api/admin/session', authenticate, (req, res) => {
-    if (req.user.role !== 'ADMIN') return res.status(403).json({ message: 'Administrator access required.' });
-    res.json({ user: req.user });
-  });
+  userRoutes(app, db, authenticate);
   app.use((_req, res) => res.status(404).json({ message: 'Route not found.' }));
   app.use((error, _req, res, _next) => {
     if (error instanceof ZodError) {

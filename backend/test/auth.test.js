@@ -69,6 +69,28 @@ test('authentication, role boundaries and password reset against PostgreSQL', as
     assert.deepEqual(concurrent.map(({ status }) => status).sort(), [204, 400]);
     assert.equal((await request('/auth/me', { token: session })).status, 401);
     assert.equal((await request('/auth/login', { body: credentials })).status, 401);
+    const renewed = await request('/auth/login', { body: { ...credentials, password } });
+    assert.equal(renewed.status, 200);
+    const studentId = registered.data.user.id;
+    const profile = '/users/' + studentId;
+    const adminToken = privileged.data.token;
+    const statusChange = (token, active) => request(profile + '/status', { token, method: 'PATCH', body: { active } });
+    assert.equal((await request('/users', { token: renewed.data.token })).status, 403);
+    assert.equal((await statusChange(renewed.data.token, false)).status, 403);
+    assert.equal((await request('/users/invalid', { token: adminToken })).status, 400);
+    assert.equal((await request('/users/' + privileged.data.user.id, { token: adminToken })).status, 404);
+    const search = await request('/users?search=' + suffix.toUpperCase(), { token: adminToken });
+    assert.equal(search.data.total, 1);
+    assert.equal(search.data.users[0].id, studentId);
+    const before = await request('/admin/dashboard', { token: adminToken });
+    assert.equal((await statusChange(adminToken, false)).data.user.active, false);
+    assert.equal((await request('/auth/me', { token: renewed.data.token })).status, 401);
+    assert.equal((await request('/auth/login', { body: { ...credentials, password } })).status, 401);
+    assert.equal((await request(profile, { token: adminToken })).data.user.active, false);
+    const after = await request('/admin/dashboard', { token: adminToken });
+    assert.equal(after.data.inactive, before.data.inactive + 1);
+    assert.equal((await statusChange(adminToken, true)).data.user.active, true);
+    assert.equal((await request('/auth/me', { token: renewed.data.token })).status, 401);
     assert.equal((await request('/auth/login', { body: { ...credentials, password } })).status, 200);
   } finally {
     await new Promise((resolve) => server.close(resolve));

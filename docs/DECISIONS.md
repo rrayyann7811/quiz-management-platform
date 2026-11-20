@@ -5,3 +5,4 @@
 - Use bcrypt with cost 12 and enforce its 72-byte input limit. The reset token is random, digested in storage, valid for 30 minutes and consumed transactionally. An account-level lock coordinates reset and login, and password reset revokes existing sessions.
 - Owner-only provisioning accepts environment variables. Demo quiz seeding is planned for Day 3 as a repeatable, development-only script with no precomputed attempt history.
 - History design for Days 4–5 will snapshot question and option content, marking data, and quiz metadata when an attempt starts. Keep archived records available to historical views.
+- Deactivating a student preserves the user record and revokes sessions and reset links in the same transaction. Reactivation lets the student sign in again with a new session.

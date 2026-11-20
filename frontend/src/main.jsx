@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Link, Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import axios from 'axios';
+import { AdminSummary, StudentList, StudentProfile } from './Admin.jsx';
 import './style.css';
 
 const api = axios.create({ baseURL: import.meta.env.VITE_API_URL || 'http://localhost:4000/api', timeout: 15000 });
@@ -94,19 +95,20 @@ function Dashboard({ user, onLogout }) {
     <div className="min-h-screen md:grid md:grid-cols-[15rem_1fr]">
       <aside className="border-b border-slate-200 bg-white p-5 md:border-r md:border-b-0">
         <p className="mb-5 font-semibold">Quiz Management</p>
-        <nav aria-label="Dashboard"><Link to={user.role === 'ADMIN' ? '/admin' : '/student'}>Dashboard</Link></nav>
+        <nav className="flex flex-wrap gap-4 md:flex-col" aria-label="Dashboard">
+          <Link to={user.role === 'ADMIN' ? '/admin' : '/student'}>Dashboard</Link>
+          {user.role === 'ADMIN' && <Link to="/admin/students">Students</Link>}
+        </nav>
         <button className="button mt-6" onClick={logout} disabled={busy}>Sign out</button>
         {error && <p className="mt-2 text-sm text-red-700" role="alert">{error}</p>}
       </aside>
-      <main className="p-5 md:p-10">
-        <h1 className="text-2xl font-semibold">{user.role === 'ADMIN' ? 'Admin dashboard' : 'Student dashboard'}</h1>
-        <p className="mt-3 text-slate-600">Signed in as {user.name} ({user.email}).</p>
-      </main>
+      <main className="min-w-0 p-5 md:p-10"><Outlet /></main>
     </div>
   );
 }
 
 function App() {
+  const location = useLocation();
   const [user, setUser] = useState(null);
   const [status, setStatus] = useState('loading');
 
@@ -154,8 +156,14 @@ function App() {
       {Object.keys(forms).map((mode) => (
         <Route key={mode} path={mode} element={user && mode !== 'reset-password' ? <Navigate to={home} replace /> : <AuthForm key={mode} mode={mode} onLogin={login} onReset={clearSession} />} />
       ))}
-      <Route path="/admin" element={user?.role === 'ADMIN' ? <Dashboard user={user} onLogout={logout} /> : <Navigate to={home} replace />} />
-      <Route path="/student" element={user?.role === 'STUDENT' ? <Dashboard user={user} onLogout={logout} /> : <Navigate to={home} replace />} />
+      <Route path="/admin" element={user?.role === 'ADMIN' ? <Dashboard user={user} onLogout={logout} /> : <Navigate to={home} replace />}>
+        <Route index element={<><h1 className="text-2xl font-semibold">Admin dashboard</h1><AdminSummary api={api} /></>} />
+        <Route path="students" element={<StudentList api={api} />} />
+        <Route path="students/:id" element={<StudentProfile key={location.pathname} api={api} />} />
+      </Route>
+      <Route path="/student" element={user?.role === 'STUDENT' ? <Dashboard user={user} onLogout={logout} /> : <Navigate to={home} replace />}>
+        <Route index element={<><h1 className="text-2xl font-semibold">Student dashboard</h1><p className="mt-3 text-slate-600">Signed in as {user?.name} ({user?.email}).</p></>} />
+      </Route>
       <Route path="*" element={<Navigate to={home} replace />} />
     </Routes>
   );
