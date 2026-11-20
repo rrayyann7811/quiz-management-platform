@@ -5,6 +5,8 @@ import { useForm } from 'react-hook-form';
 import axios from 'axios';
 import { AdminSummary, StudentList, StudentProfile } from './Admin.jsx';
 import { Categories, NewQuiz, QuizEditor, QuizList } from './Authoring.jsx';
+import { StudentHome, StudentQuizDetails, StudentQuizzes } from './StudentQuizzes.jsx';
+import { StudentAttempt } from './StudentAttempt.jsx';
 import './style.css';
 
 const api = axios.create({ baseURL: import.meta.env.VITE_API_URL || 'http://localhost:4000/api', timeout: 15000 });
@@ -98,6 +100,7 @@ function Dashboard({ user, onLogout }) {
         <p className="mb-5 font-semibold">Quiz Management</p>
         <nav className="flex flex-wrap gap-4 md:flex-col" aria-label="Dashboard">
           <Link to={user.role === 'ADMIN' ? '/admin' : '/student'}>Dashboard</Link>
+          {user.role === 'STUDENT' && <Link to="/student/quizzes">Quizzes</Link>}
           {user.role === 'ADMIN' && <>
             <Link to="/admin/students">Students</Link>
             <Link to="/admin/categories">Categories</Link>
@@ -171,7 +174,10 @@ function App() {
         <Route path="students/:id" element={<StudentProfile key={location.pathname} api={api} />} />
       </Route>
       <Route path="/student" element={user?.role === 'STUDENT' ? <Dashboard user={user} onLogout={logout} /> : <Navigate to={home} replace />}>
-        <Route index element={<><h1 className="text-2xl font-semibold">Student dashboard</h1><p className="mt-3 text-slate-600">Signed in as {user?.name} ({user?.email}).</p></>} />
+        <Route index element={<StudentHome api={api} />} />
+        <Route path="quizzes" element={<StudentQuizzes api={api} />} />
+        <Route path="quizzes/:quizId" element={<StudentQuizDetails key={location.pathname} api={api} />} />
+        <Route path="attempts/:attemptId" element={<StudentAttempt key={location.pathname} api={api} />} />
       </Route>
       <Route path="*" element={<Navigate to={home} replace />} />
     </Routes>

@@ -5,9 +5,11 @@ import { rateLimit } from 'express-rate-limit';
 import { ZodError } from 'zod';
 import { authRoutes } from './auth.js';
 import { userRoutes } from './users.js';
-import { AuthoringError, authoringRoutes } from './authoring.js';
+import { authoringRoutes } from './authoring.js';
+import { attemptRoutes } from './attempts.js';
+import { ApiError } from './api-error.js';
 
-export function createApp({ db, origin, proxyHops = 0, sendReset }) {
+export function createApp({ db, origin, proxyHops = 0, sendReset, attemptClock }) {
   const app = express();
   app.set('trust proxy', proxyHops);
   app.disable('x-powered-by');
@@ -33,9 +35,10 @@ export function createApp({ db, origin, proxyHops = 0, sendReset }) {
 
   userRoutes(app, db, authenticate);
   authoringRoutes(app, db, authenticate);
+  attemptRoutes(app, db, authenticate, attemptClock);
   app.use((_req, res) => res.status(404).json({ message: 'Route not found.' }));
   app.use((error, _req, res, _next) => {
-    if (error instanceof AuthoringError) {
+    if (error instanceof ApiError) {
       return res.status(error.status).json({ message: error.message });
     }
     if (error instanceof ZodError) {

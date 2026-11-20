@@ -44,17 +44,37 @@ model PasswordReset {
   @@index([userId])
 }
 
+enum AttemptStatus {
+  IN_PROGRESS
+  SUBMITTED
+  TIMED_OUT
+}
+
 model Attempt {
-  id          String   @id @default(uuid()) @db.Uuid
-  userId      String   @db.Uuid
-  user        User     @relation(fields: [userId], references: [id], onDelete: Restrict)
-  quizTitle   String
-  startedAt   DateTime
-  finalizedAt DateTime
-  score       Decimal  @db.Decimal(5, 2)
-  passed      Boolean
+  id              String         @id @default(uuid()) @db.Uuid
+  userId          String         @db.Uuid
+  user            User           @relation(fields: [userId], references: [id], onDelete: Restrict)
+  quizId          String?        @db.Uuid
+  quiz            Quiz?          @relation(fields: [quizId], references: [id], onDelete: Restrict)
+  quizTitle       String
+  startedAt       DateTime
+  expiresAt       DateTime?
+  finalizedAt     DateTime?
+  status          AttemptStatus?
+  snapshot        Json?
+  answers         Json?
+  score           Decimal?       @db.Decimal(5, 2)
+  passed          Boolean?
+  correctCount    Int?
+  incorrectCount  Int?
+  unansweredCount Int?
+  maximumMarks    Int?
+  obtainedMarks   Int?
+  elapsedSeconds  Int?
 
   @@index([userId, finalizedAt, id])
+  @@index([userId, quizId])
+  @@index([quizId])
 }
 
 enum Difficulty {
@@ -94,6 +114,7 @@ model Quiz {
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
   questions       Question[]
+  attempts        Attempt[]
 
   @@index([categoryId])
   @@index([status, archivedAt])

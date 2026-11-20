@@ -60,3 +60,20 @@ Category names are trimmed, 2–80 characters, and unique case-insensitively. Th
 The question payload includes `text`, `explanation`, `difficulty`, `marks` (1–100), and 2–6 `options` in display order. Each option contains `text` and boolean `isCorrect`. Exactly one option must be correct. Editing the question replaces the previous option set transactionally.
 
 Malformed input returns 400. Missing records and quizzes hidden from students return 404. Student calls to administrator-only endpoints return 403. Duplicate categories, category deletion with references, and attempts to edit published quizzes return 409.
+
+## Student discovery and attempts
+
+`GET /quizzes` also accepts `search` (case-insensitive title substring), `difficulty`, `minDuration` and `maxDuration` in minutes, and `sort` (`recent` for newest first or `title`, the default). The student browse screen defaults to `recent`. Existing student visibility rules still apply.
+
+All attempt routes require an active STUDENT session. An unknown attempt ID or an attempt owned by another student returns 404. A malformed ID or payload returns 400.
+
+| Method and path | Request and successful response |
+| --- | --- |
+| GET /quizzes/:quizId/eligibility | Published quiz → `{remainingAttempts, activeAttemptId}`. The active ID is null when there is no valid open attempt. |
+| POST /quizzes/:quizId/start | Empty body or `{}` → `{attempt}`, with 201 for a new attempt or 200 when continuing an existing one. Hidden quizzes return 404 and an exhausted limit returns 409. |
+| GET /attempts/active | `{attempts}` containing only active `{id, quizTitle, expiresAt}` entries. Includes active attempts for quizzes since unpublished or archived. |
+| GET /attempts/:attemptId | `{attempt}`. Finalizes an expired attempt before returning it. |
+| PUT /attempts/:attemptId/answers | `{questionId, optionId}` → echoes the saved IDs. Replaces the prior selection for that question. A foreign option returns 400. An expired or finalized attempt rejects saves with 409. |
+| POST /attempts/:attemptId/submit | Empty body, `{}`, or `{onlyIfExpired: boolean}` → `{attempt}`. When `onlyIfExpired` is true, calls before expiry return the active attempt. Repeated submissions return the stored result. |
+
+An attempt response contains `id`, `quizId`, `quizTitle`, `status`, `startedAt`, `expiresAt`, and `serverNow`. In progress it also contains `questions` (question and option IDs and text) and `answers` (question UUID to selected option UUID). The finalized response contains `finalizedAt` and `summary` with `totalQuestions`, `correctCount`, `incorrectCount`, `unansweredCount`, `maximumMarks`, `obtainedMarks`, `percentage`, `passed`, and `elapsedSeconds`. The response never returns grading keys or explanations at this checkpoint.

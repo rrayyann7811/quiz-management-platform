@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { requireRole } from './users.js';
+import { ApiError } from './api-error.js';
 
 const uuid = z.uuid();
 const difficulty = z.enum(['EASY', 'MEDIUM', 'HARD']);
@@ -36,21 +37,14 @@ const quizSelect = {
 };
 const questionInclude = { options: { orderBy: { position: 'asc' } } };
 
-export class AuthoringError extends Error {
-  constructor(status, message) {
-    super(message);
-    this.status = status;
-  }
-}
-
 function missing(resource) {
-  return new AuthoringError(404, resource + ' not found.');
+  return new ApiError(404, resource + ' not found.');
 }
 
 async function lockQuiz(tx, id, editable = false) {
   const [quiz] = await tx.$queryRaw`SELECT id, status FROM "Quiz" WHERE id = ${id}::uuid AND "archivedAt" IS NULL FOR UPDATE`;
   if (!quiz) throw missing('Quiz');
-  if (editable && quiz.status === 'PUBLISHED') throw new AuthoringError(409, 'Unpublish the quiz before editing it.');
+  if (editable && quiz.status === 'PUBLISHED') throw new ApiError(409, 'Unpublish the quiz before editing it.');
   return quiz;
 }
 
@@ -67,10 +61,25 @@ function visibleQuizzes(role, categoryId) {
   };
 }
 
-function quizList(db, role, categoryId) {
+const discoveryFilters = z.object({
+  categoryId: uuid.optional(),
+  search: z.string().trim().max(120).optional(),
+  difficulty: difficulty.optional(),
+  minDuration: z.coerce.number().int().min(1).max(240).optional(),
+  maxDuration: z.coerce.number().int().min(1).max(240).optional(),
+  sort: z.enum(['title', 'recent']).optional(),
+}).refine(({ minDuration, maxDuration }) => !minDuration || !maxDuration || minDuration <= maxDuration,
+  'Minimum duration cannot exceed maximum duration.');
+
+function quizList(db, role, categoryId, { search, difficulty, minDuration, maxDuration, sort } = {}) {
   return db.quiz.findMany({
-    where: visibleQuizzes(role, categoryId), select: quizSelect,
-    orderBy: [{ title: 'asc' }, { id: 'asc' }],
+    where: {
+      ...visibleQuizzes(role, categoryId), difficulty,
+      ...(search && { title: { contains: search, mode: 'insensitive' } }),
+      ...(minDuration || maxDuration ? { durationMinutes: { gte: minDuration, lte: maxDuration } } : {}),
+    },
+    select: quizSelect,
+    orderBy: [sort === 'recent' ? { createdAt: 'desc' } : { title: 'asc' }, { id: 'asc' }],
   });
 }
 
@@ -78,10 +87,22 @@ async function saveCategory(operation) {
   try {
     return await operation();
   } catch (error) {
-    if (error.code === 'P2002') throw new AuthoringError(409, 'A category with that name already exists.');
+    if (error.code === 'P2002') throw new ApiError(409, 'A category with that name already exists.');
     if (error.code === 'P2025') throw missing('Category');
     throw error;
   }
+}
+
+export function validatePublishableQuiz(quiz) {
+  const { durationMinutes, passingPercent, maxAttempts, questions } = quiz;
+  if (durationMinutes < 1 || durationMinutes > 240 || passingPercent < 0 || passingPercent > 100
+    || maxAttempts < 1 || maxAttempts > 20) {
+    throw new ApiError(422, 'Set a valid duration, passing percentage, and attempt limit.');
+  }
+  if (!questions.length) throw new ApiError(422, 'Add at least one question before publishing.');
+  const invalidQuestion = questions.some(({ marks, options }) => marks < 1 || marks > 100
+    || options.length < 2 || options.length > 6 || options.filter(({ isCorrect }) => isCorrect).length !== 1);
+  if (invalidQuestion) throw new ApiError(422, 'Every question needs positive marks, 2–6 options, and exactly one correct answer.');
 }
 
 export function authoringRoutes(app, db, authenticate) {
@@ -113,7 +134,7 @@ export function authoringRoutes(app, db, authenticate) {
     await db.$transaction(async (tx) => {
       await lockCategory(tx, id);
       if (await tx.quiz.count({ where: { categoryId: id } })) {
-        throw new AuthoringError(409, 'This category is referenced by quizzes and cannot be deleted.');
+        throw new ApiError(409, 'This category is referenced by quizzes and cannot be deleted.');
       }
       await tx.category.delete({ where: { id } });
     });
@@ -121,8 +142,8 @@ export function authoringRoutes(app, db, authenticate) {
   });
 
   app.get('/api/quizzes', authenticate, async (req, res) => {
-    const categoryId = uuid.optional().parse(req.query.categoryId);
-    res.json({ quizzes: await quizList(db, req.user.role, categoryId) });
+    const { categoryId, ...filters } = discoveryFilters.parse(req.query);
+    res.json({ quizzes: await quizList(db, req.user.role, categoryId, filters) });
   });
   app.get('/api/quizzes/:id', authenticate, async (req, res) => {
     const id = uuid.parse(req.params.id);
@@ -165,15 +186,7 @@ export function authoringRoutes(app, db, authenticate) {
       if (published) {
         const candidate = await tx.quiz.findUnique({ where: { id },
           include: { questions: { include: questionInclude } } });
-        const { durationMinutes, passingPercent, maxAttempts, questions } = candidate;
-        if (durationMinutes < 1 || durationMinutes > 240 || passingPercent < 0 || passingPercent > 100
-          || maxAttempts < 1 || maxAttempts > 20) {
-          throw new AuthoringError(422, 'Set a valid duration, passing percentage, and attempt limit.');
-        }
-        if (!questions.length) throw new AuthoringError(422, 'Add at least one question before publishing.');
-        const invalidQuestion = questions.some(({ marks, options }) => marks < 1 || marks > 100
-          || options.length < 2 || options.length > 6 || options.filter(({ isCorrect }) => isCorrect).length !== 1);
-        if (invalidQuestion) throw new AuthoringError(422, 'Every question needs positive marks, 2–6 options, and exactly one correct answer.');
+        validatePublishableQuiz(candidate);
       }
       return tx.quiz.update({ where: { id },
         data: { status: published ? 'PUBLISHED' : 'UNPUBLISHED' }, select: quizSelect });

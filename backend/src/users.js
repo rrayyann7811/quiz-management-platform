@@ -50,9 +50,9 @@ export function userRoutes(app, db, authenticate) {
     const pageSize = 25;
     const [student, attempts, total] = await db.$transaction([
       db.user.findUnique({ where: { id: userId, role: 'STUDENT' }, select: { id: true } }),
-      db.attempt.findMany({ where: { userId }, orderBy: [{ finalizedAt: 'desc' }, { id: 'desc' }],
+      db.attempt.findMany({ where: { userId, finalizedAt: { not: null } }, orderBy: [{ finalizedAt: 'desc' }, { id: 'desc' }],
         skip: (page - 1) * pageSize, take: pageSize }),
-      db.attempt.count({ where: { userId } }),
+      db.attempt.count({ where: { userId, finalizedAt: { not: null } } }),
     ], { isolationLevel: 'RepeatableRead' });
     if (!student) return res.status(404).json({ message: 'Student not found.' });
     res.json({ attempts: attempts.map(({ id, quizTitle, startedAt, finalizedAt, score, passed }) =>
