@@ -13,17 +13,20 @@ enum Role {
 }
 
 model User {
-  id           String          @id @default(uuid()) @db.Uuid
-  name         String
-  email        String          @unique
-  passwordHash String
-  role         Role            @default(STUDENT)
-  active       Boolean         @default(true)
-  createdAt    DateTime        @default(now())
-  archivedAt   DateTime?
-  sessions     Session[]
-  resets       PasswordReset[]
-  attempts     Attempt[]
+  id                  String          @id @default(uuid()) @db.Uuid
+  name                String
+  email               String          @unique
+  passwordHash        String
+  role                Role            @default(STUDENT)
+  active              Boolean         @default(true)
+  createdAt           DateTime        @default(now())
+  archivedAt          DateTime?
+  sessions            Session[]
+  resets              PasswordReset[]
+  attempts            Attempt[]
+  leaderboardExcluded Boolean         @default(false)
+
+  @@index([role, createdAt])
 }
 
 model Session {
@@ -75,6 +78,8 @@ model Attempt {
   @@index([userId, finalizedAt, id])
   @@index([userId, quizId])
   @@index([quizId])
+  @@index([startedAt])
+  @@index([finalizedAt, quizId])
 }
 
 enum Difficulty {

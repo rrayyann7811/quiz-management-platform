@@ -5,7 +5,7 @@
 - [x] Day 3. Category, quiz and MCQ CRUD, preview, publish validation and demo content.
 - [x] Day 4. Student discovery, eligibility, timed attempts, saved answers and scoring.
 - [x] Day 5. Results, review, history, student dashboard and history integrity verification.
-- [ ] Day 6. Admin performance analytics and deterministic leaderboards.
+- [x] Day 6. Admin performance analytics and deterministic leaderboards.
 - [ ] Day 7. Regression/security testing, polish, screenshots, release preparation and handoff.
 
 ## Day 1 checkpoint
@@ -49,3 +49,12 @@
 - `TEST_DATABASE_URL=<verified-local-url> npm test` passed four backend integration scenarios and one frontend timer-resume regression test. Coverage includes Day 1–4 behavior, owned and foreign access, active-attempt redaction, correct/incorrect/unanswered and weighted review, timeout settlement, immutable history after editing and archiving, legacy summaries, pagination, sorting, empty dashboards and persisted aggregations.
 - `node /tmp/quiz-day5-browser-smoke.mjs --reproduce-timer` reproduced a stale displayed countdown under simulated inactivity before the fix. `node /tmp/quiz-day5-browser-smoke.mjs` passed in headless Chrome after adding server resync and correcting a mobile table overflow. It covered real login, empty dashboard, discovery, start, saved answers, submission and score, result loading and refresh, review navigation and statuses, history links, database-backed stats, one- and two-point charts, invalid result handling, mobile layout at 390px, and visibility/focus recovery of a timed-out attempt.
 - `npm run build` and `git diff --check` passed. Legacy attempts remain summary-only and the dashboard explains their unavailable question counts. Live email delivery, the older local checksum discrepancy, and the previously recorded Prisma CLI dependency findings carry forward. Day 6 has yet to start.
+
+## Day 6 checkpoint
+
+- Added platform statistics, date-filtered attempt and registration trends, pass/fail distribution, quiz results and popularity, and history-preserving category analytics. The admin dashboard and reports read real PostgreSQL aggregates and Recharts uses the API series.
+- Added authenticated overall and category leaderboards with UTC weekly/monthly filters, bounded pagination, deterministic ties, and admin-only manual exclusions. Exclusions leave finalized results and analytics unchanged.
+- `npm run generate -w backend` passed. `npm run migrate -w backend` added `20261120040000_analytics_leaderboard` to the verified loopback database `quiz_platform_day3_test`, and `prisma migrate status` reported up to date. All five migrations also applied to empty `quiz_platform_day6_test`. Earlier migration files and attempt records were untouched.
+- `TEST_DATABASE_URL=<verified-local-url> npm test` passed on both databases (six backend scenarios and one frontend unit test each). Reporting coverage includes role denial, publication and question counts, finalized scores, passing timeouts, date buckets, historical categories, archived quiz metrics, legacy data, rankings, tie ordering, period boundaries, filters, and exclusion isolation. The backend suite runs scenarios serially so platform count assertions have isolated fixtures.
+- `node /tmp/quiz-day6-browser-smoke.mjs` passed in headless Chrome using Vite, Express, and PostgreSQL. It verified a real submission, admin counts and three charts, date grouping and empty ranges, report navigation, rule display, exclusion and restore, student category and period filters, access denial, loading, and 390px/1366px layouts. Initial browser runs revealed filter-transition timing and chart resize sensitivity. The final flow tested controlled forms after each API response and checked layout after chart resizing settled.
+- `npm run build` and Git whitespace checks passed. Live reset email verification, the older local checksum discrepancy, and recorded Prisma CLI dependency findings remain open. Day 7 has yet to start.

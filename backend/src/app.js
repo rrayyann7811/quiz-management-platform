@@ -8,6 +8,8 @@ import { userRoutes } from './users.js';
 import { authoringRoutes } from './authoring.js';
 import { attemptRoutes } from './attempts.js';
 import { ApiError } from './api-error.js';
+import { analyticsRoutes } from './analytics.js';
+import { leaderboardRoutes } from './leaderboard.js';
 
 export function createApp({ db, origin, proxyHops = 0, sendReset, attemptClock }) {
   const app = express();
@@ -36,6 +38,8 @@ export function createApp({ db, origin, proxyHops = 0, sendReset, attemptClock }
   userRoutes(app, db, authenticate);
   authoringRoutes(app, db, authenticate);
   attemptRoutes(app, db, authenticate, attemptClock);
+  analyticsRoutes(app, db, authenticate);
+  leaderboardRoutes(app, db, authenticate);
   app.use((_req, res) => res.status(404).json({ message: 'Route not found.' }));
   app.use((error, _req, res, _next) => {
     if (error instanceof ApiError) {

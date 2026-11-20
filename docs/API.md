@@ -90,3 +90,29 @@ An attempt response contains `id`, `quizId`, `quizTitle`, `status`, `startedAt`,
 History summaries contain `id`, `quizTitle`, `finalizedAt`, `percentage`, `passed`, `elapsedSeconds` and `status`. A detailed result adds `totalQuestions`, `correctCount`, `incorrectCount`, `unansweredCount`, `maximumMarks`, `obtainedMarks`, and `review`. Review entries contain the question number, text, explanation, option IDs and text, selected option ID (or null), correct option ID, status (`CORRECT`, `INCORRECT`, or `UNANSWERED`), maximum question marks and awarded marks. Raw snapshot and answer-map fields are excluded. Legacy summaries retain their stored title, completion date, score and outcome. Missing metrics and review data are null.
 
 Dashboard `stats` contains `totalAttempts`, `passedAttempts`, `failedAttempts`, `averageScore`, `highestScore`, `answeredQuestions`, and `missingQuestionCounts`. Only finalized attempts count in statistics. Timed-out and legacy scores are included. Average and maximum are null for an empty history. Answered questions sum correct plus incorrect counts where available, with a separate tally of legacy attempts missing these counts.
+
+## Admin analytics
+
+`GET /admin/dashboard` requires ADMIN and returns platform totals plus the existing account count aliases `total`, `active`, `inactive`, and `archived`.
+
+`GET /admin/analytics` requires ADMIN. Query parameters:
+
+| Parameter | Values |
+| --- | --- |
+| `from`, `to` | Inclusive UTC dates, `YYYY-MM-DD`. Default is a 30-day window ending today or on the requested end date. Range limit is 366 days. |
+| `group` | `day` (default), `week` (Monday starts), or `month`. |
+| `limit` | 1–50 rows, default 10. Applies to quiz performance, category performance, and popularity. |
+| `quizPage`, `categoryPage` | Independent one-based page numbers, default 1. |
+
+The response contains `filters`, all-time `platform` statistics, `attemptTrends` (`date`, `attempts`), `studentRegistrations` (`date`, `registrations`), `passFail`, `quizPopularity`, `quizPerformance`, and `categoryPerformance`. Performance tables use `{rows, page, hasMore}`. Popularity is limited and sorted by persisted starts, then current title and ID. Quiz results include stored score aggregates, current title and category, and archive state. Category results include current quiz inventory and attempt aggregates attributed to the category saved in each snapshot. Time buckets are labeled by their start and include zero-count periods. Registrations count STUDENT accounts by creation date. Starts and outcome metrics use their own timestamps, so a window can include completions of attempts started earlier.
+
+## Leaderboards
+
+| Method and path | Access | Request and response |
+| --- | --- | --- |
+| GET /leaderboard | ADMIN, STUDENT | Optional `categoryId`, `period` (`overall`, `weekly`, `monthly`), `page` (default 1), `limit` (1–50, default 15). Returns `{entries, categoryId, period, page, limit, hasMore}`. Students receive only `rank`, `displayName`, `averageScore`, `highestScore`, and `quizzesCompleted`. Admin entries also contain `studentId` for management. |
+| GET /leaderboard/categories | ADMIN, STUDENT | Returns `{categories}` with category IDs and labels, including historical IDs referenced by finalized attempts. |
+| GET /admin/leaderboard/exclusions | ADMIN | Optional `page` and `limit` as above. Returns `{students, page, limit, hasMore}` for manually excluded students. |
+| PATCH /admin/leaderboard/exclusions/:id | ADMIN | `{excluded: boolean}` sets or clears the manual exclusion and returns `{id, excluded}`. |
+
+Leaderboard periods use the current UTC calendar week (Monday through now) and month (first day through now), based on finalization time. Both roles must authenticate. Invalid filters return 400. An unknown, valid category UUID yields an empty ranking.

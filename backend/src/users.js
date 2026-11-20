@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { publicUser } from './auth.js';
+import { platformStatistics } from './platform-statistics.js';
 
 export const requireRole = (role) => (req, res, next) => {
   if (req.user.role !== role) return res.status(403).json({ message: 'Access denied for this role.' });
@@ -14,12 +15,11 @@ export function userRoutes(app, db, authenticate) {
 
   app.get('/api/admin/session', ...admin, (req, res) => res.json({ user: req.user }));
   app.get('/api/admin/dashboard', ...admin, async (_req, res) => {
-    const [active, inactive, archived] = await db.$transaction([
-      db.user.count({ where: { role: 'STUDENT', active: true } }),
-      db.user.count({ where: { role: 'STUDENT', active: false, archivedAt: null } }),
-      db.user.count({ where: { role: 'STUDENT', archivedAt: { not: null } } }),
-    ], { isolationLevel: 'RepeatableRead' });
-    res.json({ total: active + inactive + archived, active, inactive, archived });
+    const stats = await platformStatistics(db);
+    res.json({
+      total: stats.totalStudents, active: stats.activeStudents, inactive: stats.inactiveStudents,
+      archived: stats.archivedStudents, ...stats,
+    });
   });
 
   app.get('/api/users', ...admin, async (req, res) => {

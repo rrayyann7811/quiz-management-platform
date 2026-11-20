@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { PlatformStats } from './Reporting.jsx';
 
 export function useRequest(api, path, params) {
   const [state, setState] = useState({});
@@ -24,14 +25,11 @@ export function AdminSummary({ api }) {
   const [state] = useRequest(api, '/admin/dashboard');
   if (!state.data) return loading(state);
   return (
-    <dl className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      {Object.entries({ total: 'Total students', active: 'Active accounts', inactive: 'Deactivated accounts', archived: 'Archived accounts' }).map(([key, label]) => (
-        <div className="card" key={key}>
-          <dt className="text-sm text-slate-600">{label}</dt>
-          <dd className="mt-2 text-2xl font-semibold">{state.data[key]}</dd>
-        </div>
-      ))}
-    </dl>
+    <div className="mt-5 space-y-4">
+      <p className="text-sm text-slate-600">All-time attempt statistics and current quiz inventory.</p>
+      <PlatformStats stats={state.data} />
+      <Link to="/admin/analytics">View analytics</Link>
+    </div>
   );
 }
 

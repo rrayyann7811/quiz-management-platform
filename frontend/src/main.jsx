@@ -8,6 +8,8 @@ import { Categories, NewQuiz, QuizEditor, QuizList } from './Authoring.jsx';
 import { StudentQuizDetails, StudentQuizzes } from './StudentQuizzes.jsx';
 import { StudentAttempt } from './StudentAttempt.jsx';
 import { AttemptResult, StudentHistory, StudentHome } from './StudentResults.jsx';
+import { AdminAnalytics } from './AdminAnalytics.jsx';
+import { Leaderboard } from './Leaderboard.jsx';
 import './style.css';
 
 const api = axios.create({ baseURL: import.meta.env.VITE_API_URL || 'http://localhost:4000/api', timeout: 15000 });
@@ -104,9 +106,12 @@ function Dashboard({ user, onLogout }) {
           {user.role === 'STUDENT' && <>
             <Link to="/student/quizzes">Quizzes</Link>
             <Link to="/student/attempts">Attempt history</Link>
+            <Link to="/student/leaderboard">Leaderboard</Link>
           </>}
           {user.role === 'ADMIN' && <>
             <Link to="/admin/students">Students</Link>
+            <Link to="/admin/analytics">Analytics</Link>
+            <Link to="/admin/leaderboard">Leaderboard management</Link>
             <Link to="/admin/categories">Categories</Link>
             <Link to="/admin/quizzes">Quizzes</Link>
           </>}
@@ -170,6 +175,8 @@ function App() {
       ))}
       <Route path="/admin" element={user?.role === 'ADMIN' ? <Dashboard user={user} onLogout={logout} /> : <Navigate to={home} replace />}>
         <Route index element={<><h1 className="text-2xl font-semibold">Admin dashboard</h1><AdminSummary api={api} /></>} />
+        <Route path="analytics" element={<AdminAnalytics api={api} />} />
+        <Route path="leaderboard" element={<Leaderboard api={api} admin />} />
         <Route path="categories" element={<Categories api={api} />} />
         <Route path="quizzes" element={<QuizList api={api} />} />
         <Route path="quizzes/new" element={<NewQuiz api={api} />} />
@@ -183,6 +190,7 @@ function App() {
         <Route index element={<StudentHome api={api} user={user} />} />
         <Route path="quizzes" element={<StudentQuizzes api={api} />} />
         <Route path="quizzes/:quizId" element={<StudentQuizDetails key={location.pathname} api={api} />} />
+        <Route path="leaderboard" element={<Leaderboard api={api} />} />
         <Route path="attempts" element={<StudentHistory api={api} />} />
         <Route path="attempts/:attemptId/result" element={<AttemptResult key={location.pathname} api={api} />} />
         <Route path="attempts/:attemptId/result/review" element={<AttemptResult key={location.pathname} api={api} review />} />
