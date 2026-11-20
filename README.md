@@ -6,7 +6,7 @@ A React/Vite frontend and an Express REST API backed by PostgreSQL. The two role
 - Administrators manage student accounts, author and publish quizzes, inspect historical results, view platform analytics, and manage leaderboard exclusions.
 - The server enforces deadlines, scoring, attempt limits, and access. PostgreSQL stores saved selections, score history, and immutable question snapshots.
 
-**Release status:** local portfolio demo. GitHub publication, hosted URLs, and live reset email remain unverified. See [roadmap status](docs/ROADMAP_STATUS.md).
+**Release status:** local portfolio demo. Hosted URLs remain unverified. Email-based password reset is temporarily unavailable without a verified sender. See [roadmap status](docs/ROADMAP_STATUS.md).
 
 ## Architecture
 

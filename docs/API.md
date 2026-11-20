@@ -118,3 +118,5 @@ The response contains `filters`, all-time `platform` statistics, `attemptTrends`
 Leaderboard periods use the current UTC calendar week (Monday through now) and month (first day through now), based on finalization time. Both roles must authenticate. Invalid filters return 400. An unknown, valid category UUID yields an empty ranking.
 
 History page rows and the total count are read in the same PostgreSQL statement snapshot, including when another request finalizes an attempt concurrently.
+
+`GET /auth/password-reset-status` returns `{available}` without account information. When no sender is configured, `POST /auth/forgot-password` returns 503 without issuing a reset token.

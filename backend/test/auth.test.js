@@ -162,3 +162,21 @@ test('authentication, role boundaries, password reset and archive preservation a
     await db.$disconnect();
   }
 });
+
+test('password reset email is explicitly unavailable without a sender', async () => {
+  const server = createApp({ origin: 'http://localhost:5173' }).listen(0, '127.0.0.1');
+  try {
+    await once(server, 'listening');
+    const base = `http://127.0.0.1:${server.address().port}/api/auth`;
+    const availability = await fetch(base + '/password-reset-status');
+    assert.deepEqual(await availability.json(), { available: false });
+    const request = await fetch(base + '/forgot-password', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'reset@example.test' }),
+    });
+    assert.equal(request.status, 503);
+    assert.deepEqual(await request.json(), { message: 'Email-based password reset is temporarily unavailable.' });
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});

@@ -69,27 +69,32 @@ export function authRoutes(app, db, sendReset, limiter) {
     res.sendStatus(204);
   });
 
+  const resetUnavailable = 'Email-based password reset is temporarily unavailable.';
+
+  app.get('/api/auth/password-reset-status', (_req, res) => {
+    res.json({ available: Boolean(sendReset) });
+  });
+
   app.post('/api/auth/forgot-password', limiter, async (req, res) => {
+    if (!sendReset) return res.status(503).json({ message: resetUnavailable });
     const input = z.strictObject({ email }).parse(req.body);
-    if (sendReset) {
-      const user = await db.user.findUnique({ where: { email: input.email } });
-      if (user?.active) {
-        const value = issueToken();
-        const issued = await db.$transaction(async (tx) => {
-          const locked = await tx.$queryRaw`SELECT active FROM "User" WHERE id = ${user.id}::uuid FOR UPDATE`;
-          if (!locked[0]?.active) return false;
-          await tx.passwordReset.deleteMany({ where: { userId: user.id, expiresAt: { lte: new Date() } } });
-          await tx.passwordReset.create({
-            data: { digest: digest(value), userId: user.id, expiresAt: new Date(Date.now() + 30 * 60_000) },
-          });
-          return true;
+    const user = await db.user.findUnique({ where: { email: input.email } });
+    if (user?.active) {
+      const value = issueToken();
+      const issued = await db.$transaction(async (tx) => {
+        const locked = await tx.$queryRaw`SELECT active FROM "User" WHERE id = ${user.id}::uuid FOR UPDATE`;
+        if (!locked[0]?.active) return false;
+        await tx.passwordReset.deleteMany({ where: { userId: user.id, expiresAt: { lte: new Date() } } });
+        await tx.passwordReset.create({
+          data: { digest: digest(value), userId: user.id, expiresAt: new Date(Date.now() + 30 * 60_000) },
         });
-        if (issued) {
-          try {
-            await sendReset(user.email, value);
-          } catch {
-            console.error('Password reset email delivery failed.');
-          }
+        return true;
+      });
+      if (issued) {
+        try {
+          await sendReset(user.email, value);
+        } catch {
+          console.error('Password reset email delivery failed.');
         }
       }
     }

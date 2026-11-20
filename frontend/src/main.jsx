@@ -25,6 +25,15 @@ function AuthForm({ mode, onLogin, onReset }) {
   const { heading, action, fields } = forms[mode];
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm();
   const [feedback, setFeedback] = useState(null);
+  const [resetAvailable, setResetAvailable] = useState(null);
+  useEffect(() => {
+    if (mode !== 'forgot-password') return;
+    const controller = new AbortController();
+    api.get('/auth/password-reset-status', { signal: controller.signal })
+      .then(({ data }) => { if (!controller.signal.aborted) setResetAvailable(data.available === true); })
+      .catch(() => { if (!controller.signal.aborted) setResetAvailable(false); });
+    return () => controller.abort();
+  }, [mode]);
   const navigate = useNavigate();
   const { state, hash } = useLocation();
   const resetToken = mode === 'reset-password' ? new URLSearchParams(hash.slice(1)).get('token') : null;
@@ -51,7 +60,9 @@ function AuthForm({ mode, onLogin, onReset }) {
       <section className="card w-full">
         <p className="mb-3 text-sm font-medium text-slate-600">Quiz Management &amp; Online Assessment Platform</p>
         <h1 className="mb-6 text-2xl font-semibold">{heading}</h1>
-        {linkMissing ? <p role="alert">Open a valid reset link or request a <Link to="/forgot-password">new reset email</Link>.</p> : (
+        {mode === 'forgot-password' && resetAvailable !== true ? (
+          <p role="status">{resetAvailable === null ? 'Checking password reset availability…' : 'Email-based password reset is temporarily unavailable.'}</p>
+        ) : linkMissing ? <p role="alert">Open a valid reset link or request a <Link to="/forgot-password">new reset email</Link>.</p> : (
           <form className="space-y-4" onSubmit={handleSubmit(submit)} noValidate>
             {fields.map((field) => (
               <label className="block text-sm font-medium" key={field}>
