@@ -213,6 +213,7 @@ function App() {
         <Route path="attempts/:attemptId/result/review" element={<AttemptResult key={location.pathname} api={api} review />} />
         <Route path="attempts/:attemptId" element={<StudentAttempt key={location.pathname} api={api} />} />
       </Route>
+      <Route path="/leaderboard" element={<Navigate to={user ? home + '/leaderboard' : '/login'} replace />} />
       <Route path="*" element={<Navigate to={home} replace />} />
     </Routes>
   );

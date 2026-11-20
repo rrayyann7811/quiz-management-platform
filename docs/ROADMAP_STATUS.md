@@ -85,3 +85,9 @@
 - Gitleaks 8.30.1 scanned all reachable Git history and the reviewed file tree with redaction. Local ignored paths and migration files were checked. The Day 1 mismatch is confined to an older local test database previously shown to differ by a trailing newline. Production migration history remains a separate verification gate.
 
 See the [deployment plan](DEPLOYMENT.md) for proposed names, limits, environment variables, migration safety, and Phase B acceptance steps.
+
+### Day 7 Phase B checkpoint
+
+- The owner approved the named Free/Hobby deployment targets and explicitly deferred live email delivery. The public reset form shows its unavailable state when the backend has no sender, and requests return `503` without issuing tokens.
+- The reviewed source is published at [the approved GitHub repository](https://github.com/rrayyann7811/quiz-management-platform). Hosted CI passed after moving disposable PostgreSQL to runner loopback and keeping the test safety guard. [Hosted CI run](https://github.com/rrayyann7811/quiz-management-platform/actions/runs/44788961753)
+- Local Chrome verified both reset availability states and direct navigation to the leaderboard on the production bundle. Neon project and branch identity, migrations, owner provisioning, and public Render/Vercel runtime checks remain pending.

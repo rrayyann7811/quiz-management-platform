@@ -9,6 +9,7 @@
     { "source": "/register", "destination": "/index.html" },
     { "source": "/forgot-password", "destination": "/index.html" },
     { "source": "/reset-password", "destination": "/index.html" },
+    { "source": "/leaderboard", "destination": "/index.html" },
     { "source": "/student/:path*", "destination": "/index.html" },
     { "source": "/admin/:path*", "destination": "/index.html" }
   ],
