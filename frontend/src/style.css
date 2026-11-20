@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+@layer base {
+  body { @apply bg-slate-50 text-slate-900 antialiased; }
+  a { @apply text-blue-700 underline-offset-4 hover:underline; }
+  input { @apply mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 focus:border-blue-600 focus:outline focus:outline-blue-600; }
+  input[aria-invalid="true"] { @apply border-red-600; }
+}
+
+@layer components {
+  .card { @apply rounded-xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8; }
+  .button { @apply rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 disabled:cursor-wait disabled:opacity-60; }
+}

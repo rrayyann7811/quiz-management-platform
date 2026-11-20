@@ -1,0 +1,12 @@
+{
+  "name": "quiz-management-platform",
+  "private": true,
+  "workspaces": ["backend", "frontend"],
+  "scripts": {
+    "dev": "concurrently -k 'npm run dev -w backend' 'npm run dev -w frontend'",
+    "build": "npm run build -w frontend",
+    "test": "npm test -w backend"
+  },
+  "engines": {"node": ">=22.12"},
+  "devDependencies": {"concurrently": "^9.2.1"}
+}
