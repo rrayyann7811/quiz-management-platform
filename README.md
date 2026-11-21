@@ -6,7 +6,7 @@ A React/Vite frontend and an Express REST API backed by PostgreSQL. The two role
 - Administrators manage student accounts, author and publish quizzes, inspect historical results, view platform analytics, and manage leaderboard exclusions.
 - The server enforces deadlines, scoring, attempt limits, and access. PostgreSQL stores saved selections, score history, and immutable question snapshots.
 
-**Release status:** [public source repository](https://github.com/rrayyann7811/quiz-management-platform). Hosted application URLs remain unverified. Email-based password reset is temporarily unavailable without a verified sender. See [roadmap status](docs/ROADMAP_STATUS.md).
+**Deployment status:** The [Vercel frontend](https://quiz-management-platform-flame.vercel.app) and [Render API](https://quiz-management-platform-api.onrender.com) are live. The [API health endpoint](https://quiz-management-platform-api.onrender.com/api/health) checks the production Neon connection. Source is available on [GitHub](https://github.com/rrayyann7811/quiz-management-platform). Email password reset is temporarily unavailable pending a verified sender.
 
 ## Architecture
 
@@ -57,7 +57,7 @@ npm test
 npm run build
 ```
 
-The integration suite writes temporary fixtures to PostgreSQL and exercises the real HTTP application. Use a dedicated test database. The GitHub Actions workflow repeats migration, audit, tests, and build checks. Hosted CI has yet to run. See the [Day 7 evidence](docs/ROADMAP_STATUS.md#day-7-phase-a).
+The integration suite writes temporary fixtures to PostgreSQL and exercises the real HTTP application. Use a dedicated test database. The [GitHub Actions workflow](https://github.com/rrayyann7811/quiz-management-platform/actions) runs migration, audit, test, and build checks against a dedicated CI database.
 
 - [API reference](docs/API.md)
 - [Implementation decisions](docs/DECISIONS.md)
