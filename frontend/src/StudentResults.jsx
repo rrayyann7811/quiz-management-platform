@@ -2,6 +2,8 @@ import { lazy, Suspense } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useRequest } from './Admin.jsx';
 import { RequestStatus } from './StudentQuizzes.jsx';
+import { MetricGrid } from './Reporting.jsx';
+import { Badge, EmptyState, PageHeading, QuickActions } from './ui.jsx';
 
 const ScoreTrend = lazy(() => import('./ScoreTrend.jsx'));
 
@@ -12,26 +14,24 @@ const duration = (value) => value === null ? '—' : Math.floor(value / 60) + ':
 const resultPath = (id) => '/student/attempts/' + id + '/result';
 
 function Outcome({ passed }) {
-  return <span className={'rounded px-2 py-1 text-sm font-medium ' + (passed ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-800')}>
-    {passed ? 'Passed' : 'Failed'}
-  </span>;
+  return <Badge>{passed ? "Passed" : "Failed"}</Badge>;
 }
 
 function AttemptTable({ attempts, showTime = false }) {
-  if (!attempts.length) return <p>No completed attempts.</p>;
+  if (!attempts.length) return <EmptyState icon="clock">Completed quiz attempts will appear here.</EmptyState>;
   const columns = ['Quiz', 'Completed', 'Score', 'Result', ...(showTime ? ['Time taken'] : []), 'Details'];
   return (
-    <div className="overflow-x-auto rounded-md border border-slate-200 bg-white">
-      <table className="w-full text-left text-sm">
-        <thead className="bg-slate-100"><tr>{columns.map((label) => <th key={label} scope="col" className="p-3">{label}</th>)}</tr></thead>
-        <tbody>{attempts.map((attempt) => (
-          <tr key={attempt.id} className="border-t border-slate-200">
-            <td className="p-3 font-medium">{attempt.quizTitle}</td>
-            <td className="p-3 whitespace-nowrap">{date.format(new Date(attempt.finalizedAt))}</td>
-            <td className="p-3">{percent(attempt.percentage)}</td>
-            <td className="p-3"><Outcome passed={attempt.passed} /></td>
-            {showTime && <td className="p-3">{duration(attempt.elapsedSeconds)}</td>}
-            <td className="p-3 whitespace-nowrap"><Link to={resultPath(attempt.id)} aria-label={'View result for ' + attempt.quizTitle}>View result</Link></td>
+    <div className="table-scroll" tabIndex={0} role="region" aria-label="Completed attempts">
+      <table className="attempt-table w-full text-left text-sm" role="table">
+        <thead className="bg-slate-100" role="rowgroup"><tr role="row">{columns.map((label) => <th key={label} role="columnheader" scope="col" className="p-3">{label}</th>)}</tr></thead>
+        <tbody role="rowgroup">{attempts.map((attempt) => (
+          <tr key={attempt.id} className="border-t border-slate-200" role="row">
+            <th className="attempt-title p-3 text-left font-semibold" role="rowheader" scope="row">{attempt.quizTitle}</th>
+            <td className="p-3 whitespace-nowrap" role="cell"><span className="attempt-cell-label" aria-hidden="true">Completed</span>{date.format(new Date(attempt.finalizedAt))}</td>
+            <td className="p-3" role="cell"><span className="attempt-cell-label" aria-hidden="true">Score</span>{percent(attempt.percentage)}</td>
+            <td className="p-3" role="cell"><span className="attempt-cell-label" aria-hidden="true">Result</span><Outcome passed={attempt.passed} /></td>
+            {showTime && <td className="p-3" role="cell"><span className="attempt-cell-label" aria-hidden="true">Time taken</span>{duration(attempt.elapsedSeconds)}</td>}
+            <td className="attempt-link p-3 whitespace-nowrap" role="cell"><Link to={resultPath(attempt.id)} aria-label={'View result for ' + attempt.quizTitle}>View result</Link></td>
           </tr>
         ))}</tbody>
       </table>
@@ -44,26 +44,21 @@ export function StudentHome({ api, user }) {
   const dashboard = state.data;
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Student dashboard</h1>
-        <p className="mt-1 break-words text-sm text-slate-600">Welcome, {user.name}.</p>
-      </div>
-      <div className="flex flex-wrap items-center gap-4">
-        <Link className="button inline-block" to="/student/quizzes">Browse quizzes</Link>
-        <Link to="/student/attempts">View all attempts</Link>
-      </div>
+      <PageHeading title="Student dashboard" description={<>Welcome, <strong>{user.name}</strong>. Review your progress or start a quiz.</>} />
+      <QuickActions items={[
+        ['Browse quizzes', '/student/quizzes', 'book'],
+        ['View history', '/student/attempts', 'clock'],
+        ['Open leaderboard', '/student/leaderboard', 'trophy'],
+      ]} />
       {!dashboard ? <RequestStatus error={state.error} /> : (
         <>
           <section aria-label="Performance statistics">
-            <dl className="grid grid-cols-2 gap-3 xl:grid-cols-3">
-              {Object.entries({
-                'Total attempts': dashboard.stats.totalAttempts, Passed: dashboard.stats.passedAttempts,
-                Failed: dashboard.stats.failedAttempts, 'Average score': percent(dashboard.stats.averageScore),
-                'Highest score': percent(dashboard.stats.highestScore), 'Questions answered': dashboard.stats.answeredQuestions,
-              }).map(([label, value]) => <div className="card p-4 sm:p-5" key={label}>
-                <dt className="text-sm text-slate-600">{label}</dt><dd className="mt-1 text-xl font-semibold">{value}</dd>
-              </div>)}
-            </dl>
+            <h2 className="mb-3 text-lg font-semibold">Performance overview</h2>
+            <MetricGrid entries={[
+              ['Total attempts', dashboard.stats.totalAttempts], ['Average score', percent(dashboard.stats.averageScore)],
+              ['Highest score', percent(dashboard.stats.highestScore)], ['Passed', dashboard.stats.passedAttempts],
+              ['Failed', dashboard.stats.failedAttempts], ['Questions answered', dashboard.stats.answeredQuestions],
+            ]} />
             {dashboard.stats.missingQuestionCounts > 0 && <p className="mt-2 text-sm text-slate-600">
               Questions answered excludes {dashboard.stats.missingQuestionCounts} {dashboard.stats.missingQuestionCounts === 1 ? 'earlier attempt' : 'earlier attempts'} without question counts.
             </p>}
@@ -75,7 +70,7 @@ export function StudentHome({ api, user }) {
                 <span className="break-words font-medium">{quizTitle}</span>
                 <Link to={'/student/attempts/' + id}>Continue quiz<span className="sr-only"> {quizTitle}</span></Link>
               </li>)}
-            </ul> : <p className="text-sm text-slate-600">You have no in-progress quizzes.</p>}
+            </ul> : <EmptyState action={<Link to="/student/quizzes">Find a quiz</Link>}>You have no in-progress quizzes.</EmptyState>}
           </section>
           <section className="space-y-3" aria-labelledby="recent-attempts">
             <h2 id="recent-attempts" className="text-lg font-semibold">Recent attempts</h2>
@@ -87,7 +82,7 @@ export function StudentHome({ api, user }) {
               <Suspense fallback={<p role="status" className="text-sm">Loading score trend…</p>}>
                 <ScoreTrend entries={dashboard.scoreTrend} />
               </Suspense>
-            ) : <p className="text-sm text-slate-600">Complete a quiz to see your score trend.</p>}
+            ) : <EmptyState icon="chart">Complete a quiz to see your score trend.</EmptyState>}
           </section>
         </>
       )}
@@ -102,7 +97,7 @@ export function StudentHistory({ api }) {
   const data = state.data;
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">Attempt history</h1>
+      <PageHeading title="Attempt history" description="Review completed quizzes, scores, and individual results." />
       <Link to="/student">Back to dashboard</Link>
       {!data ? <RequestStatus error={state.error} /> : (
         <>
@@ -129,10 +124,10 @@ function AnswerReview({ questions }) {
         const correct = question.options.find(({ id }) => id === question.correctOptionId);
         return (
           <li className="card space-y-3 break-words" key={question.number}>
-            <h2 className="font-semibold">Question {question.number}</h2>
+            <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="font-semibold">Question {question.number}</h2><Badge>{answerStatuses[question.status]}</Badge></div>
             <p>{question.text}</p>
-            <ul className="list-disc space-y-1 pl-5 text-sm">
-              {question.options.map(({ id, text }) => <li key={id}>{text}
+            <ul className="space-y-2 text-sm">
+              {question.options.map(({ id, text }) => <li key={id} className={'review-option' + (id === question.correctOptionId ? ' review-correct' : id === question.selectedOptionId ? ' review-incorrect' : '')}>{text}
                 {id === question.selectedOptionId && <span className="ml-2 text-slate-600">(Your answer)</span>}
                 {id === question.correctOptionId && <span className="ml-2 font-medium text-emerald-800">(Correct answer)</span>}
               </li>)}
@@ -140,9 +135,8 @@ function AnswerReview({ questions }) {
             <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
               <div><dt className="font-semibold">Your answer</dt><dd>{selected?.text ?? 'No answer selected'}</dd></div>
               <div><dt className="font-semibold">Correct answer</dt><dd>{correct.text}</dd></div>
-              <div><dt className="font-semibold">Answer status</dt><dd>{answerStatuses[question.status]}</dd></div>
               <div><dt className="font-semibold">Marks awarded</dt><dd>{question.awardedMarks} / {question.marks}</dd></div>
-              <div className="sm:col-span-2"><dt className="font-semibold">Explanation</dt><dd className="whitespace-pre-wrap">{question.explanation}</dd></div>
+              <div className="rounded-lg bg-slate-50 p-3 sm:col-span-2"><dt className="mb-1 font-semibold">Explanation</dt><dd className="whitespace-pre-wrap">{question.explanation}</dd></div>
             </dl>
           </li>
         );
@@ -175,10 +169,11 @@ export function AttemptResult({ api, admin = false, review = false }) {
           {result.status === 'TIMED_OUT' && ' · Time expired'}</p>
       </div>
       {review ? <AnswerReview questions={result.review} /> : (
-        <section className="card space-y-4" aria-label="Result summary">
+        <section className={'card space-y-5 ' + (result.passed ? 'result-pass' : 'result-fail')} aria-label="Result summary">
           <div className="flex flex-wrap items-center gap-3">
-            <p className="text-3xl font-semibold">{percent(result.percentage)}</p><Outcome passed={result.passed} />
+            <p className="result-score">{percent(result.percentage)}</p><Outcome passed={result.passed} />
           </div>
+          {result.percentage != null && <progress className="progress" max={100} value={result.percentage} aria-label="Percentage score" />}
           {result.review ? (
             <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               {Object.entries({

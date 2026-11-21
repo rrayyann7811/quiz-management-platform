@@ -3,13 +3,14 @@ import { useSearchParams } from 'react-router-dom';
 import { useRequest } from './Admin.jsx';
 import { formatPercent, PageControls, ReportTable } from './Reporting.jsx';
 import { RequestStatus, requestError } from './StudentQuizzes.jsx';
+import { PageHeading, useToast } from './ui.jsx';
 
 function Rankings({ api, params, onPage, admin, busy, setExcluded }) {
   const [state] = useRequest(api, '/leaderboard', params.toString());
   if (!state.data) return <RequestStatus error={state.error} />;
   const { entries, page, hasMore } = state.data;
   const columns = [
-    ['Rank', (row) => row.rank], ['Student', (row) => row.displayName],
+    ['Rank', (row) => <span className={'rank' + (row.rank === 1 ? ' rank-first' : row.rank <= 3 ? ' rank-top' : '')}>{row.rank}</span>], ['Student', (row) => row.displayName],
     ['Average best score', (row) => formatPercent(row.averageScore)],
     ['Highest score', (row) => formatPercent(row.highestScore)], ['Quizzes completed', (row) => row.quizzesCompleted],
   ];
@@ -18,7 +19,7 @@ function Rankings({ api, params, onPage, admin, busy, setExcluded }) {
     onClick={() => setExcluded(row.studentId, row.displayName, true)}>Exclude</button>]);
   return (
     <>
-      <ReportTable columns={columns} rows={entries} empty="No students are ranked in this view." />
+      <ReportTable columns={columns} rows={entries} empty="Rankings will appear after eligible students complete quizzes in this view." />
       <PageControls page={page} hasMore={hasMore} onChange={onPage} name="Leaderboard pages" />
     </>
   );
@@ -52,7 +53,7 @@ function RankingFilters({ initialCategory, initialPeriod, categories, onApply })
   }
 
   return (
-    <form className="card grid max-w-3xl gap-3 sm:grid-cols-3" onSubmit={submit}>
+    <form className="card grid max-w-3xl gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]" onSubmit={submit}>
       <div><label className="text-sm" htmlFor="leaderboard-category">Category</label>
         <select id="leaderboard-category" value={categoryId} onChange={(event) => setCategoryId(event.target.value)}>
           <option value="">Overall</option>
@@ -75,18 +76,17 @@ export function Leaderboard({ api, admin = false }) {
   const [revision, setRevision] = useState(0);
   const [excludedPage, setExcludedPage] = useState(1);
   const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState(null);
+  const notify = useToast();
 
   async function setExcluded(id, name, excluded) {
     if (excluded && !window.confirm(`Exclude ${name} from leaderboards? Their results will be kept.`)) return;
     setBusy(true);
-    setNotice(null);
     try {
       await api.patch('/admin/leaderboard/exclusions/' + id, { excluded });
-      setNotice({ text: excluded ? `${name} was excluded.` : `Manual exclusion removed for ${name}.` });
+      notify(excluded ? `${name} was excluded.` : `Manual exclusion removed for ${name}.`);
       setRevision((value) => value + 1);
     } catch (error) {
-      setNotice({ error: true, text: requestError(error) });
+      notify(requestError(error), true);
     } finally {
       setBusy(false);
     }
@@ -94,7 +94,7 @@ export function Leaderboard({ api, admin = false }) {
 
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-semibold">{admin ? 'Leaderboard management' : 'Leaderboard'}</h1>
+      <PageHeading title={admin ? "Leaderboard management" : "Leaderboard"} description="Compare best assessment scores by category and time period." />
       <RankingFilters key={`${params.get('categoryId')}:${params.get('period')}`}
         initialCategory={params.get('categoryId') ?? ''} initialPeriod={params.get('period') ?? 'overall'}
         categories={categoryState.data?.categories ?? []} onApply={setParams} />
@@ -105,7 +105,6 @@ export function Leaderboard({ api, admin = false }) {
         <p>Higher averages rank first, then more distinct quizzes, then the highest individual score. Identical metrics share a rank.</p>
         <p>Weeks start Monday and months start on the first, both at midnight UTC. Category rankings use the category at attempt start.</p>
       </details>
-      {notice && <p role={notice.error ? 'alert' : 'status'} className={notice.error ? 'text-red-700' : 'text-teal-800'}>{notice.text}</p>}
       <Rankings key={revision} {...{ api, params, admin, busy, setExcluded }} onPage={(page) => {
         const updated = new URLSearchParams(params);
         updated.set('page', page);

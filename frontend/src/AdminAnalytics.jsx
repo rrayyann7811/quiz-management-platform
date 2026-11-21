@@ -1,6 +1,7 @@
 import { lazy, Suspense, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useRequest } from './Admin.jsx';
+import { PageHeading } from './ui.jsx';
 import { RequestStatus } from './StudentQuizzes.jsx';
 import { formatPercent, PageControls, PlatformStats, ReportTable } from './Reporting.jsx';
 
@@ -68,7 +69,7 @@ export function AdminAnalytics({ api }) {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Analytics</h1>
+      <PageHeading title="Analytics" description="Explore quiz activity, score trends, and performance by assessment or category." />
       <AnalyticsFilters key={`${from}:${to}:${group}:${params.get('limit')}`}
         initial={{ from, to, group, limit: params.get('limit') ?? '10' }} onApply={setParams} />
       {!data ? <RequestStatus error={state.error} /> : (

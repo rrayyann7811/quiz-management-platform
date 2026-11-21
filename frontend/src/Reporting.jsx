@@ -1,3 +1,5 @@
+import { EmptyState, Icon } from './ui.jsx';
+
 export const formatPercent = (value) => value == null ? '—' : value + '%';
 
 const metrics = {
@@ -8,23 +10,33 @@ const metrics = {
   passedAttempts: 'Passed attempts', failedAttempts: 'Failed attempts',
 };
 
+const groups = [
+  ['Students', 'students', ['totalStudents', 'activeStudents', 'inactiveStudents', 'archivedStudents']],
+  ['Quiz management', 'book', ['totalQuizzes', 'publishedQuizzes', 'draftQuizzes', 'unpublishedQuizzes', 'totalQuestions']],
+  ['Performance', 'chart', ['totalAttempts', 'completedAttempts', 'averageScore', 'passedAttempts', 'failedAttempts']],
+];
+
+export function MetricGrid({ entries }) {
+  return <dl className="metric-grid">
+    {entries.map(([label, value]) => <div className="metric-card" key={label}>
+      <dt>{label}</dt><dd>{value}</dd>
+    </div>)}
+  </dl>;
+}
+
 export function PlatformStats({ stats }) {
-  return (
-    <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
-      {Object.entries(metrics).map(([key, label]) => (
-        <div className="card p-4 sm:p-5" key={key}>
-          <dt className="text-sm text-slate-600">{label}</dt>
-          <dd className="mt-2 text-xl font-semibold">{key === 'averageScore' ? formatPercent(stats[key]) : stats[key]}</dd>
-        </div>
-      ))}
-    </dl>
-  );
+  return <div className="grid gap-5">
+    {groups.map(([title, icon, keys]) => <section key={title} className="metric-group" aria-label={title}>
+      <h2><span className="icon-tile"><Icon name={icon} /></span>{title}</h2>
+      <MetricGrid entries={keys.map((key) => [metrics[key], key === 'averageScore' ? formatPercent(stats[key]) : stats[key]])} />
+    </section>)}
+  </div>;
 }
 
 export function ReportTable({ columns, rows, empty }) {
-  if (!rows.length) return <p className="text-sm text-slate-600">{empty}</p>;
+  if (!rows.length) return <EmptyState>{empty}</EmptyState>;
   return (
-    <div className="relative overflow-x-auto rounded-md border border-slate-200 bg-white">
+    <div className="table-scroll" tabIndex={0} role="region" aria-label="Report table">
       <table className="w-full text-left text-sm">
         <thead className="bg-slate-100"><tr>{columns.map(([heading]) =>
           <th scope="col" className="whitespace-nowrap p-3" key={heading}>{heading}</th>)}</tr></thead>

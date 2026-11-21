@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserRouter, Link, Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Link, NavLink, Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import axios from 'axios';
 import { AdminSummary, StudentList, StudentProfile } from './Admin.jsx';
@@ -10,6 +10,7 @@ import { StudentAttempt } from './StudentAttempt.jsx';
 import { AttemptResult, StudentHistory, StudentHome } from './StudentResults.jsx';
 import { AdminAnalytics } from './AdminAnalytics.jsx';
 import { Leaderboard } from './Leaderboard.jsx';
+import { Icon, ToastProvider } from './ui.jsx';
 import './style.css';
 
 const api = axios.create({ baseURL: import.meta.env.VITE_API_URL || 'http://localhost:4000/api', timeout: 15000 });
@@ -56,29 +57,35 @@ function AuthForm({ mode, onLogin, onReset }) {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-md items-center px-4 py-10">
-      <section className="card w-full">
-        <p className="mb-3 text-sm font-medium text-slate-600">Quiz Management &amp; Online Assessment Platform</p>
-        <h1 className="mb-6 text-2xl font-semibold">{heading}</h1>
+    <main className="auth-layout">
+      <section className="auth-brand">
+        <Brand />
+        <div><h2>Online assessment platform</h2>
+          <p>Find your quizzes, take timed assessments, and review your results in one place.</p></div>
+      </section>
+      <section className="auth-content">
+        <h1 className="mb-6">{heading}</h1>
         {mode === 'forgot-password' && resetAvailable !== true ? (
           <p role="status">{resetAvailable === null ? 'Checking password reset availability…' : 'Email-based password reset is temporarily unavailable.'}</p>
         ) : linkMissing ? <p role="alert">Open a valid reset link or request a <Link to="/forgot-password">new reset email</Link>.</p> : (
           <form className="space-y-4" onSubmit={handleSubmit(submit)} noValidate>
             {fields.map((field) => (
-              <label className="block text-sm font-medium" key={field}>
-                {field === 'name' ? 'Full name' : field === 'email' ? 'Email address' : 'Password'}
+              <div className="text-sm" key={field}>
+                <label htmlFor={`auth-${field}`}>{field === 'name' ? 'Full name' : field === 'email' ? 'Email address' : 'Password'}</label>
                 <input
+                  id={`auth-${field}`}
                   type={field === 'name' ? 'text' : field}
                   autoComplete={field === 'password' ? (mode === 'login' ? 'current-password' : 'new-password') : field}
                   aria-invalid={Boolean(errors[field])}
+                  aria-describedby={errors[field] ? `auth-${field}-error` : undefined}
                   {...register(field, {
                     required: 'This field is required.',
                     ...(field === 'email' && { pattern: { value: /^\S+@\S+\.\S+$/, message: 'Enter a valid email address.' } }),
                     ...(field === 'password' && mode !== 'login' && { minLength: { value: 12, message: 'Use at least 12 characters.' } }),
                   })}
                 />
-                {errors[field] && <span className="text-red-700">{errors[field].message}</span>}
-              </label>
+                {errors[field] && <span id={`auth-${field}-error`} className="mt-1 block text-red-700">{errors[field].message}</span>}
+              </div>
             ))}
             {mode === 'login' && state?.message && <p role="status" className="text-teal-800">{state.message}</p>}
             {feedback && <p role={feedback.error ? 'alert' : 'status'} className={feedback.error ? 'text-red-700' : 'text-teal-800'}>{feedback.text}</p>}
@@ -94,9 +101,47 @@ function AuthForm({ mode, onLogin, onReset }) {
   );
 }
 
+const adminLinks = [
+  ['/admin', 'Dashboard', 'dashboard'], ['/admin/students', 'Students', 'students'],
+  ['/admin/quizzes', 'Quizzes', 'book'], ['/admin/categories', 'Categories', 'category'],
+  ['/admin/analytics', 'Analytics', 'chart'], ['/admin/leaderboard', 'Leaderboard management', 'trophy'],
+];
+const studentLinks = [
+  ['/student', 'Dashboard', 'dashboard'], ['/student/quizzes', 'Quizzes', 'book'],
+  ['/student/attempts', 'Attempt history', 'clock'], ['/student/leaderboard', 'Leaderboard', 'trophy'],
+];
+
+function Brand() {
+  return <div className="brand"><span className="brand-mark"><Icon name="book" size={22} /></span>
+    <span className="brand-text">Quiz Management</span></div>;
+}
+
 function Dashboard({ user, onLogout }) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem('quiz-sidebar') === 'collapsed');
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const { pathname } = useLocation();
+  const admin = user.role === 'ADMIN';
+  const links = admin ? adminLinks : studentLinks;
+  const current = links.find(([to]) => pathname === to || (to !== links[0][0] && pathname.startsWith(to + '/')));
+
+  useEffect(() => {
+    localStorage.setItem('quiz-sidebar', collapsed ? 'collapsed' : 'expanded');
+  }, [collapsed]);
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+    function closeOnEscape(event) {
+      if (event.key === 'Escape') {
+        setMobileOpen(false);
+        document.getElementById('mobile-nav-toggle')?.focus();
+      }
+    }
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [mobileOpen]);
+
   async function logout() {
     setBusy(true);
     setError('');
@@ -104,31 +149,53 @@ function Dashboard({ user, onLogout }) {
     catch { setError('Could not end the session. Try signing out again.'); }
     finally { setBusy(false); }
   }
-  return (
-    <div className="min-h-screen md:grid md:grid-cols-[15rem_1fr]">
-      <aside className="border-b border-slate-200 bg-white p-5 md:border-r md:border-b-0">
-        <p className="mb-5 font-semibold">Quiz Management</p>
-        <nav className="flex flex-wrap gap-4 md:flex-col" aria-label="Dashboard">
-          <Link to={user.role === 'ADMIN' ? '/admin' : '/student'}>Dashboard</Link>
-          {user.role === 'STUDENT' && <>
-            <Link to="/student/quizzes">Quizzes</Link>
-            <Link to="/student/attempts">Attempt history</Link>
-            <Link to="/student/leaderboard">Leaderboard</Link>
-          </>}
-          {user.role === 'ADMIN' && <>
-            <Link to="/admin/students">Students</Link>
-            <Link to="/admin/analytics">Analytics</Link>
-            <Link to="/admin/leaderboard">Leaderboard management</Link>
-            <Link to="/admin/categories">Categories</Link>
-            <Link to="/admin/quizzes">Quizzes</Link>
-          </>}
+
+  return <div className={'app-shell' + (collapsed ? ' sidebar-collapsed' : '')}>
+    <a className="skip-link" href="#main-content">Skip to content</a>
+    <aside className="sidebar">
+      <div className="sidebar-brand">
+        <Brand />
+        <button type="button" className="mobile-nav-toggle" id="mobile-nav-toggle"
+          aria-label={mobileOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={mobileOpen}
+          aria-controls="dashboard-navigation" onClick={() => setMobileOpen(!mobileOpen)}>
+          <Icon name={mobileOpen ? 'close' : 'menu'} />
+        </button>
+      </div>
+      <div className={'sidebar-body' + (mobileOpen ? ' mobile-open' : '')} id="dashboard-navigation">
+        <nav className="sidebar-nav" aria-label="Dashboard">
+          {links.map(([to, label, icon], index) => <NavLink key={to} to={to} end={index === 0}
+            title={label} aria-label={label} onClick={() => {
+              if (!mobileOpen) return;
+              setMobileOpen(false);
+              document.getElementById('main-content')?.focus();
+            }}>
+            <Icon name={icon} /><span className="sidebar-label">{label}</span>
+          </NavLink>)}
         </nav>
-        <button className="button mt-6" onClick={logout} disabled={busy}>Sign out</button>
-        {error && <p className="mt-2 text-sm text-red-700" role="alert">{error}</p>}
-      </aside>
-      <main className="min-w-0 p-5 md:p-10"><Outlet /></main>
+        <div className="sidebar-footer">
+          <div className="sidebar-user">
+            <span className="avatar" aria-hidden="true">{user.name.trim().slice(0, 1).toUpperCase()}</span>
+            <div className="sidebar-label"><strong>{user.name}</strong><small>{admin ? 'Administrator' : 'Student'}</small></div>
+          </div>
+          <button type="button" className="sidebar-signout" onClick={logout} disabled={busy} title="Sign out"
+            aria-label={busy ? 'Signing out' : 'Sign out'}><Icon name="logout" /><span className="sidebar-label">{busy ? 'Signing out…' : 'Sign out'}</span></button>
+          {error && <p className="sidebar-error" role="alert">{error}</p>}
+        </div>
+      </div>
+    </aside>
+    <div className="workspace">
+      <header className="workspace-bar">
+        <button type="button" className="sidebar-toggle" aria-controls="dashboard-navigation"
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-expanded={!collapsed}
+          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} onClick={() => setCollapsed(!collapsed)}>
+          <Icon name="panel" />
+        </button>
+        <span>{admin ? 'Admin workspace' : 'Student workspace'}</span><span className="breadcrumb-divider" aria-hidden="true">/</span>
+        <strong>{current?.[1] ?? 'Dashboard'}</strong>
+      </header>
+      <main id="main-content" className="workspace-main" tabIndex={-1}><Outlet /></main>
     </div>
-  );
+  </div>;
 }
 
 function App() {
@@ -191,7 +258,7 @@ function App() {
         <Route key={mode} path={mode} element={user && mode !== 'reset-password' ? <Navigate to={home} replace /> : <AuthForm key={mode} mode={mode} onLogin={login} onReset={clearSession} />} />
       ))}
       <Route path="/admin" element={user?.role === 'ADMIN' ? <Dashboard user={user} onLogout={logout} /> : <Navigate to={home} replace />}>
-        <Route index element={<><h1 className="text-2xl font-semibold">Admin dashboard</h1><AdminSummary api={api} /></>} />
+        <Route index element={<AdminSummary api={api} />} />
         <Route path="analytics" element={<AdminAnalytics api={api} />} />
         <Route path="leaderboard" element={<Leaderboard api={api} admin />} />
         <Route path="categories" element={<Categories api={api} />} />
@@ -219,4 +286,4 @@ function App() {
   );
 }
 
-createRoot(document.getElementById('root')).render(<BrowserRouter><App /></BrowserRouter>);
+createRoot(document.getElementById('root')).render(<BrowserRouter><ToastProvider><App /></ToastProvider></BrowserRouter>);

@@ -2,8 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { requestError, RequestStatus } from './StudentQuizzes.jsx';
 import { listenForAttemptResume } from './attempt-resume.js';
+import { Badge, Icon } from './ui.jsx';
 
-const navigationButton = 'rounded-md border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-100 disabled:opacity-50';
+const navigationButton = 'button-secondary';
 
 function formatTime(totalSeconds) {
   return Math.floor(totalSeconds / 60) + ':' + String(totalSeconds % 60).padStart(2, '0');
@@ -12,12 +13,13 @@ function formatTime(totalSeconds) {
 function SubmissionSummary({ attempt }) {
   const { summary } = attempt;
   return (
-    <section className="card max-w-2xl space-y-5">
+    <section className={'card max-w-2xl space-y-5 ' + (summary.passed ? 'result-pass' : 'result-fail')}>
       <h1 className="text-2xl font-semibold">{attempt.status === 'TIMED_OUT' ? 'Time expired. Quiz submitted.' : 'Quiz submitted successfully'}</h1>
       <p className="break-words font-medium">{attempt.quizTitle}</p>
+      <div className="flex flex-wrap items-center gap-3"><strong className="result-score">{summary.percentage}%</strong><Badge>{summary.passed ? "Passed" : "Failed"}</Badge></div>
+      <progress className="progress" max={100} value={summary.percentage} aria-label="Percentage score" />
       <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         {Object.entries({
-          Score: summary.percentage + '%', Result: summary.passed ? 'Passed' : 'Failed',
           Correct: summary.correctCount, Incorrect: summary.incorrectCount, Unanswered: summary.unansweredCount,
           'Time taken': formatTime(summary.elapsedSeconds),
         }).map(([name, value]) => <div key={name}><dt className="text-sm text-slate-600">{name}</dt><dd className="font-semibold">{value}</dd></div>)}
@@ -171,17 +173,19 @@ export function StudentAttempt({ api }) {
       <Link to="/student">Student dashboard</Link>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="min-w-0 break-words text-2xl font-semibold">{attempt.quizTitle}</h1>
-        <p className="rounded-md border border-slate-200 bg-white px-3 py-2 font-medium tabular-nums" role="timer">
+        <p className={'timer' + (seconds <= 30 ? ' timer-critical' : seconds <= 120 ? ' timer-warning' : '')} role="timer">
+          <Icon name="clock" size={17} />
           Time remaining: {formatTime(seconds)}
         </p>
       </div>
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_15rem]">
         <section className="card min-w-0 space-y-4">
-          <p className="text-sm text-slate-600">Question {index + 1} of {attempt.questions.length}</p>
+          <p className="text-sm font-semibold text-slate-600">Question {index + 1} of {attempt.questions.length}</p>
+          <progress className="progress" max={attempt.questions.length} value={index + 1} aria-label="Position in quiz" />
           <fieldset className="space-y-2" disabled={!!busy || timeUp}>
             <legend className="mb-3 break-words font-medium">{question.text}</legend>
             {question.options.map((option) => (
-              <label key={option.id} className="flex items-start gap-3 rounded-md border border-slate-200 p-3 hover:bg-slate-50">
+              <label key={option.id} className="answer-option">
                 <input type="radio" className="radio mt-1 shrink-0" name="quiz-answer" checked={attempt.answers[question.id] === option.id}
                   onChange={() => save(option.id)} />
                 <span className="min-w-0 break-words">{option.text}</span>
@@ -191,10 +195,10 @@ export function StudentAttempt({ api }) {
           {busy === 'save' && <p role="status" className="text-sm">Saving answer…</p>}
           {timeUp && <p role="status" className="text-sm">Time is up. Checking submission…</p>}
           {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 border-t border-slate-200 pt-4">
             <button className={navigationButton} disabled={index === 0} onClick={() => setIndex(index - 1)}>Previous</button>
             <button className={navigationButton} disabled={index === attempt.questions.length - 1} onClick={() => setIndex(index + 1)}>Next</button>
-            <button className="button" disabled={!!busy || timeUp} onClick={() => {
+            <button className="button sm:ml-auto" disabled={!!busy || timeUp} onClick={() => {
               if (window.confirm('Submit this quiz? Your saved answers will be finalized.')) void submit(false);
             }}>{busy === 'submit' ? 'Submitting…' : 'Submit quiz'}</button>
           </div>
@@ -202,9 +206,10 @@ export function StudentAttempt({ api }) {
         <nav className="card space-y-3" aria-label="Question navigation">
           <h2 className="font-semibold">Questions</h2>
           <p className="text-sm text-slate-600">{Object.keys(attempt.answers).length} of {attempt.questions.length} answered</p>
+          <progress className="progress" max={attempt.questions.length} value={Object.keys(attempt.answers).length} aria-label="Questions answered" />
           <div className="flex flex-wrap gap-2">
             {attempt.questions.map(({ id }, number) => (
-              <button className={'rounded-md border px-3 py-2 text-sm ' + (attempt.answers[id] ? 'border-teal-500 bg-teal-50 text-teal-900' : 'border-slate-300 bg-white')
+              <button className={'min-h-10 min-w-10 rounded-md border px-3 py-2 text-sm ' + (attempt.answers[id] ? 'border-teal-500 bg-teal-50 text-teal-900' : 'border-slate-300 bg-white')
                 + (index === number ? ' outline-2 outline-offset-1 outline-blue-700' : '')}
                 aria-label={`Question ${number + 1}, ${attempt.answers[id] ? 'answered' : 'unanswered'}`}
                 aria-current={index === number ? 'step' : undefined} key={id} onClick={() => setIndex(number)}>{number + 1}</button>

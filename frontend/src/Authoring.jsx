@@ -2,23 +2,24 @@ import { useId, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { useRequest } from './Admin.jsx';
+import { Badge, EmptyState, Icon, LoadingState, PageHeading, useToast } from './ui.jsx';
 
 const difficulties = ['EASY', 'MEDIUM', 'HARD'];
-const secondary = 'rounded-md border border-slate-300 bg-white px-4 py-2 text-sm hover:bg-slate-100 disabled:opacity-60';
+const secondary = 'button-secondary';
 const tableCell = 'p-3 align-top';
 const errorText = (error) => error.response?.data?.message ?? 'Could not reach the server. Try again.';
 
-function Feedback({ error }) {
-  return error ? <p className="text-sm text-red-700" role="alert">{error}</p> : null;
+function Feedback({ error, id }) {
+  return error ? <p id={id} className="inline-alert" role="alert">{error}</p> : null;
 }
 
 function Pending({ error }) {
-  return error ? <Feedback error={error} /> : <p role="status">Loading…</p>;
+  return <LoadingState error={error} />;
 }
 
 function Table({ headings, children }) {
   return (
-    <div className="overflow-x-auto rounded-md border border-slate-200 bg-white">
+    <div className="table-scroll" tabIndex={0} role="region" aria-label={headings.join(", ")}>
       <table className="w-full text-left text-sm">
         <thead className="bg-slate-100"><tr>{headings.map((heading) => <th scope="col" className={tableCell} key={heading}>{heading}</th>)}</tr></thead>
         <tbody className="divide-y divide-slate-200">{children}</tbody>
@@ -30,6 +31,7 @@ function Table({ headings, children }) {
 export function Categories({ api }) {
   const [state, setState] = useRequest(api, '/categories');
   const [editing, setEditing] = useState(null);
+  const notify = useToast();
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -55,6 +57,7 @@ export function Categories({ api }) {
       updated.sort((a, b) => a.name.localeCompare(b.name));
       setState({ data: { categories: updated } });
       select();
+      notify(editing ? 'Category updated.' : 'Category added.');
     } catch (error) {
       setError(errorText(error));
     } finally {
@@ -70,6 +73,7 @@ export function Categories({ api }) {
       await api.delete('/categories/' + category.id);
       setState({ data: { categories: categories.filter(({ id }) => id !== category.id) } });
       if (editing === category.id) select();
+      notify("Category deleted.");
     } catch (error) {
       setError(errorText(error));
     } finally {
@@ -79,18 +83,18 @@ export function Categories({ api }) {
 
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-semibold">Categories</h1>
+      <PageHeading title="Categories" description="Organize quizzes by topic so students can find relevant assessments." />
       <form className="card max-w-lg space-y-3" onSubmit={save}>
         <h2 className="font-semibold">{editing ? 'Edit category' : 'Add category'}</h2>
         <label className="block text-sm">Category name
-          <input value={name} onChange={(event) => setName(event.target.value)} required minLength={2} maxLength={80} disabled={busy} />
+          <input value={name} onChange={(event) => setName(event.target.value)} required minLength={2} maxLength={80} disabled={busy} aria-invalid={Boolean(error)} aria-describedby={error ? "category-error" : undefined} />
         </label>
         <div className="flex flex-wrap gap-2">
-          <button className="button" disabled={busy}>{editing ? 'Save category' : 'Add category'}</button>
+          <button className="button" disabled={busy}>{busy ? 'Working…' : editing ? 'Save category' : 'Add category'}</button>
           {editing && <button type="button" className={secondary} onClick={() => select()} disabled={busy}>Cancel</button>}
         </div>
+        <Feedback error={error} id="category-error" />
       </form>
-      <Feedback error={error} />
       {categories.length ? (
         <Table headings={['Category', 'Quizzes', 'Actions']}>
           {categories.map((category) => (
@@ -106,7 +110,7 @@ export function Categories({ api }) {
             </tr>
           ))}
         </Table>
-      ) : <p>No categories yet.</p>}
+      ) : <EmptyState icon="category">No categories have been created yet.</EmptyState>}
     </div>
   );
 }
@@ -114,36 +118,55 @@ export function Categories({ api }) {
 export function QuizList({ api }) {
   const [params, setParams] = useSearchParams();
   const categoryId = params.get('categoryId') ?? '';
-  const [state] = useRequest(api, '/quizzes', categoryId ? new URLSearchParams({ categoryId }).toString() : '');
+  const search = params.get('search') ?? '';
+  const [state] = useRequest(api, '/quizzes', params.toString());
   const [categories] = useRequest(api, '/categories');
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">Quizzes</h1>
-        <Link className="button" to="/admin/quizzes/new">Create quiz</Link>
-      </div>
-      {categories.data ? (
-        <div className="max-w-xs text-sm">
-          <label htmlFor="quiz-category-filter">Category</label>
-          <select id="quiz-category-filter" value={categoryId} onChange={(event) => setParams(event.target.value ? { categoryId: event.target.value } : {})}>
+      <PageHeading title="Quizzes" description="Create assessments, manage questions, and control when quizzes are visible."
+        action={<Link className="button" to="/admin/quizzes/new"><Icon name="plus" size={17} />Create quiz</Link>} />
+      <form className="card grid items-end gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]" key={params.toString()}
+        onSubmit={(event) => {
+          event.preventDefault();
+          const filters = new URLSearchParams();
+          for (const [key, value] of new FormData(event.currentTarget)) if (value.trim()) filters.set(key, value.trim());
+          setParams(filters);
+        }}>
+        <label className="text-sm">Search quizzes<input name="search" defaultValue={search} maxLength={120} /></label>
+        <label className="text-sm">Category
+          <select name="categoryId" defaultValue={categoryId} disabled={!categories.data} onChange={(event) => {
+            const next = new URLSearchParams(params);
+            const value = event.target.value;
+            if (value) next.set('categoryId', value);
+            else next.delete('categoryId');
+            const term = new FormData(event.currentTarget.form).get('search').trim();
+            if (term) next.set('search', term);
+            else next.delete('search');
+            setParams(next);
+          }}>
             <option value="">All categories</option>
-            {categories.data.categories.map((category) => <option value={category.id} key={category.id}>{category.name}</option>)}
+            {categories.data?.categories.map((category) => <option value={category.id} key={category.id}>{category.name}</option>)}
           </select>
+        </label>
+        <div className="flex flex-wrap gap-2">
+          <button className="button">Apply filters</button>
+          {params.size > 0 && <Link className="button-secondary" to="/admin/quizzes">Clear</Link>}
         </div>
-      ) : <Pending error={categories.error} />}
+      </form>
+      {categories.error && <Feedback error={categories.error} />}
       {!state.data ? <Pending error={state.error} /> : state.data.quizzes.length ? (
         <Table headings={['Quiz', 'Category', 'Status', 'Questions', 'Duration']}>
           {state.data.quizzes.map((quiz) => (
             <tr key={quiz.id}>
               <td className={tableCell}><Link to={'/admin/quizzes/' + quiz.id}>{quiz.title}</Link></td>
               <td className={tableCell}>{quiz.category.name}</td>
-              <td className={tableCell}>{labelStatus(quiz.status)}</td>
+              <td className={tableCell}><Badge>{labelStatus(quiz.status)}</Badge></td>
               <td className={tableCell}>{quiz._count.questions}</td>
               <td className={tableCell}>{quiz.durationMinutes} min</td>
             </tr>
           ))}
         </Table>
-      ) : <p>No quizzes found.</p>}
+      ) : <EmptyState action={params.size ? <Link to="/admin/quizzes">Clear filters</Link> : <Link to="/admin/quizzes/new">Create quiz</Link>}>{params.size ? "No quizzes match your filters." : "No quizzes have been created yet."}</EmptyState>}
     </div>
   );
 }
@@ -167,11 +190,13 @@ function QuizForm({ api, quiz, categories, onSave, onCancel }) {
     },
   });
   const [error, setError] = useState('');
+  const notify = useToast();
   async function save(values) {
     setError('');
     try {
       const payload = { ...values, thumbnailUrl: values.thumbnailUrl.trim() || null };
       const { data } = quiz ? await api.patch('/quizzes/' + quiz.id, payload) : await api.post('/quizzes', payload);
+      notify(quiz ? "Quiz updated." : "Quiz draft created.");
       onSave(data.quiz);
     } catch (error) {
       setError(errorText(error));
@@ -209,7 +234,7 @@ export function NewQuiz({ api }) {
   return (
     <div className="space-y-5">
       <Link to="/admin/quizzes">All quizzes</Link>
-      <h1 className="text-2xl font-semibold">Create quiz</h1>
+      <PageHeading title="Create quiz" description="Set the assessment details first, then add questions and publish." />
       {!state.data ? <Pending error={state.error} /> : state.data.categories.length ?
         <QuizForm api={api} categories={state.data.categories} onSave={(quiz) => navigate('/admin/quizzes/' + quiz.id, { replace: true })} />
         : <p><Link to="/admin/categories">Create a category</Link> before adding a quiz.</p>}
@@ -228,6 +253,7 @@ export function QuizEditor({ api }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const notify = useToast();
 
   if (!state.data) return <Pending error={state.error} />;
   const { quiz } = state.data;
@@ -240,10 +266,12 @@ export function QuizEditor({ api }) {
     try {
       if (archive) {
         await api.delete(path);
+        notify('Quiz archived.');
         navigate('/admin/quizzes', { replace: true });
       } else {
         const { data } = await api.post(path + '/publish', { published: !published });
         setState({ data });
+        notify(published ? 'Quiz unpublished.' : 'Quiz published.');
       }
     } catch (error) {
       setError(errorText(error));
@@ -265,6 +293,7 @@ export function QuizEditor({ api }) {
     try {
       await api.delete('/questions/' + question.id);
       setQuestionList(questions.data.questions.filter(({ id }) => id !== question.id));
+      notify("Question deleted.");
     } catch (error) {
       setError(errorText(error));
     } finally {
@@ -276,11 +305,11 @@ export function QuizEditor({ api }) {
     <div className="space-y-5">
       <Link to="/admin/quizzes">All quizzes</Link>
       <div>
-        <h1 className="text-2xl font-semibold">{quiz.title}</h1>
-        <p className="mt-2 text-sm text-slate-600">{labelStatus(quiz.status)} · {quiz.category.name}</p>
+        <PageHeading title={quiz.title} />
+        <p className="mt-2 text-sm text-slate-600"><Badge>{labelStatus(quiz.status)}</Badge> <Badge tone="blue">{quiz.category.name}</Badge></p>
       </div>
       <div className="flex flex-wrap gap-2">
-        <button className="button" disabled={busy || editing || !!questionEditor} onClick={() => changeQuiz(false)}>{published ? 'Unpublish quiz' : 'Publish quiz'}</button>
+        <button className="button" disabled={busy || editing || !!questionEditor} onClick={() => changeQuiz(false)}>{busy ? 'Working…' : published ? 'Unpublish quiz' : 'Publish quiz'}</button>
         {!published && !editing && <button className={secondary} disabled={busy || !!questionEditor} onClick={() => setEditing(true)}>Edit quiz</button>}
         <button className={secondary} disabled={busy || editing || !!questionEditor} onClick={() => changeQuiz(true)}>Archive quiz</button>
       </div>
@@ -328,7 +357,7 @@ export function QuizEditor({ api }) {
               </li>
             ))}
           </ol>
-        ) : <p>No questions yet.</p>}
+        ) : <EmptyState icon="question">No questions have been added to this quiz yet.</EmptyState>}
       </section>
     </div>
   );
@@ -344,6 +373,7 @@ function QuestionForm({ api, path, question, onCancel, onSave }) {
   ]);
   const [nextKey, setNextKey] = useState(options.length);
   const [correct, setCorrect] = useState(question?.options.findIndex(({ isCorrect }) => isCorrect) ?? null);
+  const notify = useToast();
   const [error, setError] = useState('');
 
   async function save(values) {
@@ -356,6 +386,7 @@ function QuestionForm({ api, path, question, onCancel, onSave }) {
       const payload = { ...values, options: options.map(({ key, text }) => ({ text, isCorrect: key === correct })) };
       const { data } = question ? await api.patch('/questions/' + question.id, payload)
         : await api.post(path + '/questions', payload);
+      notify(question ? "Question updated." : "Question added.");
       onSave(data.question);
     } catch (error) {
       setError(errorText(error));
@@ -363,7 +394,7 @@ function QuestionForm({ api, path, question, onCancel, onSave }) {
   }
 
   return (
-    <form className="max-w-3xl space-y-4 rounded-md border border-slate-200 bg-white p-4" onSubmit={handleSubmit(save)}>
+    <form className="card max-w-3xl space-y-4" onSubmit={handleSubmit(save)}>
       <h3 className="font-semibold">{question ? 'Edit question' : 'Add question'}</h3>
       <label className="block text-sm">Question text<textarea {...register('text')} required maxLength={1000} rows={2} /></label>
       <div className="grid gap-4 sm:grid-cols-2">
