@@ -6,20 +6,20 @@ export default function ScoreTrend({ entries }) {
     .map(({ sequence }) => sequence);
   return (
     <>
-      <p className="text-sm text-slate-600">Your latest {points.length} completed {points.length === 1 ? 'attempt' : 'attempts'}.</p>
+      <p className="text-sm text-muted">Your latest {points.length} completed {points.length === 1 ? 'attempt' : 'attempts'}.</p>
       <ResponsiveContainer width="100%" height={220} minWidth={0}>
         <LineChart data={points} margin={{ top: 8, right: 12, bottom: 8, left: 0 }} accessibilityLayer>
-          <CartesianGrid vertical={false} stroke="#e2e8f0" strokeDasharray="3 3" />
+          <CartesianGrid vertical={false} stroke="var(--line)" strokeDasharray="3 3" />
           <XAxis axisLine={false} tickLine={false} dataKey="sequence" ticks={ticks} tickFormatter={(value) => {
             const point = points[value - 1];
             return point ? new Date(point.finalizedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '';
-          }} tick={{ fontSize: 11 }} />
-          <YAxis axisLine={false} tickLine={false} domain={[0, 100]} width={44} tickFormatter={(value) => value + '%'} tick={{ fontSize: 11 }} />
+          }} tick={{ fontSize: 11, fill: "var(--muted-ink)" }} />
+          <YAxis axisLine={false} tickLine={false} domain={[0, 100]} width={44} tickFormatter={(value) => value + '%'} tick={{ fontSize: 11, fill: "var(--muted-ink)" }} />
           <Tooltip wrapperClassName="chart-tooltip"
             labelFormatter={(_, payload) => payload[0]?.payload.quizTitle ?? ''}
             formatter={(value) => [value + '%', 'Score']}
           />
-          <Line type="linear" dataKey="percentage" stroke="#2563eb" strokeWidth={2} dot={{ r: 4 }} isAnimationActive={false} />
+          <Line type="linear" dataKey="percentage" stroke="var(--sage)" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 5, stroke: "var(--gold)", strokeWidth: 2 }} isAnimationActive={false} />
         </LineChart>
       </ResponsiveContainer>
     </>

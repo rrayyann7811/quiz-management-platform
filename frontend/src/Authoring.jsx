@@ -21,8 +21,8 @@ function Table({ headings, children }) {
   return (
     <div className="table-scroll" tabIndex={0} role="region" aria-label={headings.join(", ")}>
       <table className="w-full text-left text-sm">
-        <thead className="bg-slate-100"><tr>{headings.map((heading) => <th scope="col" className={tableCell} key={heading}>{heading}</th>)}</tr></thead>
-        <tbody className="divide-y divide-slate-200">{children}</tbody>
+        <thead className="bg-subtle"><tr>{headings.map((heading) => <th scope="col" className={tableCell} key={heading}>{heading}</th>)}</tr></thead>
+        <tbody className="divide-y divide-line">{children}</tbody>
       </table>
     </div>
   );
@@ -306,7 +306,7 @@ export function QuizEditor({ api }) {
       <Link to="/admin/quizzes">All quizzes</Link>
       <div>
         <PageHeading title={quiz.title} />
-        <p className="mt-2 text-sm text-slate-600"><Badge>{labelStatus(quiz.status)}</Badge> <Badge tone="blue">{quiz.category.name}</Badge></p>
+        <p className="mt-2 text-sm text-muted"><Badge>{labelStatus(quiz.status)}</Badge> <Badge tone="sage">{quiz.category.name}</Badge></p>
       </div>
       <div className="flex flex-wrap gap-2">
         <button className="button" disabled={busy || editing || !!questionEditor} onClick={() => changeQuiz(false)}>{busy ? 'Working…' : published ? 'Unpublish quiz' : 'Publish quiz'}</button>
@@ -322,7 +322,7 @@ export function QuizEditor({ api }) {
           <dl className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
             {Object.entries({ Difficulty: labelStatus(quiz.difficulty), Duration: quiz.durationMinutes + ' min',
               'Passing score': quiz.passingPercent + '%', 'Maximum attempts': quiz.maxAttempts }).map(([label, value]) =>
-              <div key={label}><dt className="text-slate-600">{label}</dt><dd>{value}</dd></div>)}
+              <div key={label}><dt className="text-muted">{label}</dt><dd>{value}</dd></div>)}
           </dl>
           {quiz.thumbnailUrl && <a href={quiz.thumbnailUrl} target="_blank" rel="noreferrer">View thumbnail</a>}
         </section>
@@ -332,7 +332,7 @@ export function QuizEditor({ api }) {
           <h2 id="quiz-questions" className="text-xl font-semibold">Questions ({quiz._count.questions})</h2>
           {!published && !questionEditor && questions.data && <button className="button" disabled={busy || editing} onClick={() => setQuestionEditor('new')}>Add question</button>}
         </div>
-        {published && <p className="text-sm text-slate-600">Unpublish this quiz to edit its content.</p>}
+        {published && <p className="text-sm text-muted">Unpublish this quiz to edit its content.</p>}
         {questionEditor === 'new' && <QuestionForm api={api} path={path} onCancel={() => setQuestionEditor(null)}
           onSave={(saved) => setQuestionList([...questions.data.questions, saved])} />}
         {!questions.data ? <Pending error={questions.error} /> : questions.data.questions.length ? (
@@ -343,9 +343,9 @@ export function QuizEditor({ api }) {
                   onSave={(saved) => setQuestionList(questions.data.questions.map((item) => item.id === saved.id ? saved : item))} /> : (
                   <>
                     <h3 className="break-words font-medium">{question.text}</h3>
-                    <p className="text-sm text-slate-600">{labelStatus(question.difficulty)} · {question.marks} marks</p>
+                    <p className="text-sm text-muted">{labelStatus(question.difficulty)} · {question.marks} marks</p>
                     <ul className="space-y-1 pl-5 text-sm">
-                      {question.options.map((option) => <li className="list-disc break-words" key={option.id}>{option.text}{option.isCorrect && <strong className="ml-2 text-teal-800">Correct</strong>}</li>)}
+                      {question.options.map((option) => <li className="list-disc break-words" key={option.id}>{option.text}{option.isCorrect && <strong className="ml-2 text-positive">Correct</strong>}</li>)}
                     </ul>
                     <p className="break-words text-sm"><strong>Explanation</strong> {question.explanation}</p>
                     {!published && <div className="flex flex-wrap gap-2">
@@ -403,7 +403,7 @@ function QuestionForm({ api, path, question, onCancel, onSave }) {
       </div>
       <fieldset className="space-y-3">
         <legend className="text-sm font-semibold">Options</legend>
-        <p className="text-sm text-slate-600">Select the one correct answer.</p>
+        <p className="text-sm text-muted">Select the one correct answer.</p>
         {options.map((option, index) => (
           <div key={option.key} className="flex flex-wrap items-end gap-2 sm:flex-nowrap">
             <label className="min-w-40 flex-1 text-sm">Option {index + 1}

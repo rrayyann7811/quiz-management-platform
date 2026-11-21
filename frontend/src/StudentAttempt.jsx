@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { requestError, RequestStatus } from './StudentQuizzes.jsx';
 import { listenForAttemptResume } from './attempt-resume.js';
-import { Badge, Icon } from './ui.jsx';
+import { Badge, Icon, PageHeading } from './ui.jsx';
 
 const navigationButton = 'button-secondary';
 
@@ -22,7 +22,7 @@ function SubmissionSummary({ attempt }) {
         {Object.entries({
           Correct: summary.correctCount, Incorrect: summary.incorrectCount, Unanswered: summary.unansweredCount,
           'Time taken': formatTime(summary.elapsedSeconds),
-        }).map(([name, value]) => <div key={name}><dt className="text-sm text-slate-600">{name}</dt><dd className="font-semibold">{value}</dd></div>)}
+        }).map(([name, value]) => <div key={name}><dt className="text-sm text-muted">{name}</dt><dd className="font-semibold">{value}</dd></div>)}
       </dl>
       <nav className="flex flex-wrap gap-4" aria-label="Submission navigation">
         <Link to={'/student/attempts/' + attempt.id + '/result'}>View detailed result</Link>
@@ -42,6 +42,7 @@ export function StudentAttempt({ api }) {
   const [busy, setBusy] = useState('');
   const pending = useRef(false);
   const deadline = useRef(null);
+  const confirmation = useRef(null);
 
   const receiveAttempt = useCallback((next, sentAt) => {
     if (next.status === 'IN_PROGRESS') {
@@ -142,6 +143,8 @@ export function StudentAttempt({ api }) {
   if (!attempt) return <><Link to="/student">Student dashboard</Link><div className="mt-4"><RequestStatus error={error} /></div></>;
   if (!active) return <SubmissionSummary attempt={attempt} />;
   const question = attempt.questions[index];
+  const answered = Object.keys(attempt.answers).length;
+  const unanswered = attempt.questions.length - answered;
 
   async function save(optionId) {
     if (pending.current || timeUp) return;
@@ -171,16 +174,16 @@ export function StudentAttempt({ api }) {
   return (
     <div className="space-y-5">
       <Link to="/student">Student dashboard</Link>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="min-w-0 break-words text-2xl font-semibold">{attempt.quizTitle}</h1>
+      <div className="attempt-head">
+        <PageHeading title={attempt.quizTitle} description="Choose one answer per question. Your selections are saved automatically." />
         <p className={'timer' + (seconds <= 30 ? ' timer-critical' : seconds <= 120 ? ' timer-warning' : '')} role="timer">
           <Icon name="clock" size={17} />
           Time remaining: {formatTime(seconds)}
         </p>
       </div>
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_15rem]">
-        <section className="card min-w-0 space-y-4">
-          <p className="text-sm font-semibold text-slate-600">Question {index + 1} of {attempt.questions.length}</p>
+        <section className="card attempt-question min-w-0 space-y-4">
+          <p className="text-sm font-semibold text-muted">Question {index + 1} of {attempt.questions.length}</p>
           <progress className="progress" max={attempt.questions.length} value={index + 1} aria-label="Position in quiz" />
           <fieldset className="space-y-2" disabled={!!busy || timeUp}>
             <legend className="mb-3 break-words font-medium">{question.text}</legend>
@@ -194,29 +197,41 @@ export function StudentAttempt({ api }) {
           </fieldset>
           {busy === 'save' && <p role="status" className="text-sm">Saving answer…</p>}
           {timeUp && <p role="status" className="text-sm">Time is up. Checking submission…</p>}
-          {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
-          <div className="flex flex-wrap gap-2 border-t border-slate-200 pt-4">
+          {error && <p role="alert" className="text-sm text-danger">{error}</p>}
+          <div className="flex flex-wrap gap-2 border-t border-line pt-4">
             <button className={navigationButton} disabled={index === 0} onClick={() => setIndex(index - 1)}>Previous</button>
             <button className={navigationButton} disabled={index === attempt.questions.length - 1} onClick={() => setIndex(index + 1)}>Next</button>
-            <button className="button sm:ml-auto" disabled={!!busy || timeUp} onClick={() => {
-              if (window.confirm('Submit this quiz? Your saved answers will be finalized.')) void submit(false);
-            }}>{busy === 'submit' ? 'Submitting…' : 'Submit quiz'}</button>
+            <button className="button sm:ml-auto" disabled={!!busy || timeUp}
+              onClick={() => confirmation.current.showModal()}>{busy === 'submit' ? 'Submitting…' : 'Submit quiz'}</button>
           </div>
         </section>
-        <nav className="card space-y-3" aria-label="Question navigation">
+        <nav className="card attempt-nav space-y-3" aria-label="Question navigation">
           <h2 className="font-semibold">Questions</h2>
-          <p className="text-sm text-slate-600">{Object.keys(attempt.answers).length} of {attempt.questions.length} answered</p>
-          <progress className="progress" max={attempt.questions.length} value={Object.keys(attempt.answers).length} aria-label="Questions answered" />
+          <p className="text-sm text-muted">{answered} of {attempt.questions.length} answered</p>
+          <progress className="progress" max={attempt.questions.length} value={answered} aria-label="Questions answered" />
           <div className="flex flex-wrap gap-2">
             {attempt.questions.map(({ id }, number) => (
-              <button className={'min-h-10 min-w-10 rounded-md border px-3 py-2 text-sm ' + (attempt.answers[id] ? 'border-teal-500 bg-teal-50 text-teal-900' : 'border-slate-300 bg-white')
-                + (index === number ? ' outline-2 outline-offset-1 outline-blue-700' : '')}
+              <button className="question-jump px-3 py-2 text-sm" data-answered={Boolean(attempt.answers[id])}
                 aria-label={`Question ${number + 1}, ${attempt.answers[id] ? 'answered' : 'unanswered'}`}
                 aria-current={index === number ? 'step' : undefined} key={id} onClick={() => setIndex(number)}>{number + 1}</button>
             ))}
           </div>
         </nav>
       </div>
+      <dialog className="submit-dialog" ref={confirmation} aria-labelledby="submit-title" aria-describedby="submit-description">
+        <h2 id="submit-title" className="text-xl font-semibold">Submit this quiz?</h2>
+        <p id="submit-description" className="mt-2 text-muted">
+          {unanswered > 0 ? `${unanswered} ${unanswered === 1 ? 'question is' : 'questions are'} unanswered. ` : 'All questions are answered. '}
+          Submitting finalizes your saved answers.
+        </p>
+        <form method="dialog" className="mt-5 flex flex-wrap justify-end gap-2">
+          <button className="button-secondary" autoFocus>Keep working</button>
+          <button type="button" className="button" disabled={!!busy || timeUp} onClick={() => {
+            confirmation.current.close();
+            void submit(false);
+          }}>Confirm submission</button>
+        </form>
+      </dialog>
     </div>
   );
 }

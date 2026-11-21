@@ -17,6 +17,9 @@ const paths = {
   plus: 'M12 5v14M5 12h14',
   check: 'm5 12 4 4L19 6',
   question: 'M4 4h16v16H4zm5 5a3 3 0 0 1 6 0c0 2-3 2-3 4m0 3h.01',
+  archive: 'M3 4h18v4H3zm2 4v12h14V8m-9 4h4',
+  target: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zm0-5a5 5 0 1 0 0-10 5 5 0 0 0 0 10zm0-5h.01',
+  pause: 'M9 5H6v14h3zm9 0h-3v14h3z',
   search: 'm21 21-4.5-4.5M18 11a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z',
 };
 
@@ -52,13 +55,13 @@ export function LoadingState({ error, label = 'Loading…' }) {
 }
 
 const tones = {
-  published: 'green', active: 'green', passed: 'green', correct: 'green',
-  draft: 'amber', unanswered: 'amber', failed: 'red', incorrect: 'red',
-  beginner: 'teal', intermediate: 'blue', advanced: 'amber',
+  published: 'sage', active: 'sage', passed: 'sage', correct: 'sage',
+  draft: 'gold', unanswered: 'gold', failed: 'danger', incorrect: 'danger',
+  beginner: 'sage', intermediate: 'plum', advanced: 'gold',
 };
 
 export function Badge({ children, tone }) {
-  return <span className={'badge badge-' + (tone ?? tones[String(children).toLowerCase()] ?? 'slate')}>{children}</span>;
+  return <span className={'badge badge-' + (tone ?? tones[String(children).toLowerCase()] ?? 'neutral')}>{children}</span>;
 }
 
 const ToastContext = createContext(null);

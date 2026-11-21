@@ -3,32 +3,45 @@ import { EmptyState, Icon } from './ui.jsx';
 export const formatPercent = (value) => value == null ? '—' : value + '%';
 
 const metrics = {
-  totalStudents: 'Total students', activeStudents: 'Active students', inactiveStudents: 'Inactive students',
-  archivedStudents: 'Archived students', totalQuizzes: 'Total quizzes', publishedQuizzes: 'Published quizzes',
-  draftQuizzes: 'Draft quizzes', unpublishedQuizzes: 'Unpublished quizzes', totalQuestions: 'Total questions',
-  totalAttempts: 'Total quiz attempts', completedAttempts: 'Completed attempts', averageScore: 'Average quiz score',
-  passedAttempts: 'Passed attempts', failedAttempts: 'Failed attempts',
+  totalStudents: ['Total students', 'students', 'sage'],
+  activeStudents: ['Active students', 'check', 'sage'],
+  inactiveStudents: ['Inactive students', 'pause', 'gold'],
+  archivedStudents: ['Archived students', 'archive', 'plum'],
+  totalQuizzes: ['Total quizzes', 'book', 'sage'],
+  publishedQuizzes: ['Published quizzes', 'check', 'sage'],
+  draftQuizzes: ['Draft quizzes', 'plus', 'gold'],
+  unpublishedQuizzes: ['Unpublished quizzes', 'pause', 'plum'],
+  totalQuestions: ['Total questions', 'question', 'clay'],
+  totalAttempts: ['Total quiz attempts', 'clock', 'sage'],
+  completedAttempts: ['Completed attempts', 'check', 'sage'],
+  averageScore: ['Average quiz score', 'target', 'plum'],
+  passedAttempts: ['Passed attempts', 'check', 'sage'],
+  failedAttempts: ['Failed attempts', 'close', 'clay'],
 };
 
 const groups = [
-  ['Students', 'students', ['totalStudents', 'activeStudents', 'inactiveStudents', 'archivedStudents']],
-  ['Quiz management', 'book', ['totalQuizzes', 'publishedQuizzes', 'draftQuizzes', 'unpublishedQuizzes', 'totalQuestions']],
-  ['Performance', 'chart', ['totalAttempts', 'completedAttempts', 'averageScore', 'passedAttempts', 'failedAttempts']],
+  ['Students', 'students', 'sage', ['totalStudents', 'activeStudents', 'inactiveStudents', 'archivedStudents']],
+  ['Quiz Management', 'book', 'clay', ['totalQuizzes', 'publishedQuizzes', 'draftQuizzes', 'unpublishedQuizzes', 'totalQuestions']],
+  ['Performance', 'chart', 'plum', ['totalAttempts', 'completedAttempts', 'averageScore', 'passedAttempts', 'failedAttempts']],
 ];
 
 export function MetricGrid({ entries }) {
   return <dl className="metric-grid">
-    {entries.map(([label, value]) => <div className="metric-card" key={label}>
-      <dt>{label}</dt><dd>{value}</dd>
+    {entries.map(([label, value, icon, tone]) => <div className="metric-card" key={label}>
+      <dt className="metric-label">{label}{icon && <span className={'metric-icon badge-' + tone}><Icon name={icon} size={14} /></span>}</dt>
+      <dd>{value}</dd>
     </div>)}
   </dl>;
 }
 
 export function PlatformStats({ stats }) {
-  return <div className="grid gap-5">
-    {groups.map(([title, icon, keys]) => <section key={title} className="metric-group" aria-label={title}>
-      <h2><span className="icon-tile"><Icon name={icon} /></span>{title}</h2>
-      <MetricGrid entries={keys.map((key) => [metrics[key], key === 'averageScore' ? formatPercent(stats[key]) : stats[key]])} />
+  return <div className="grid gap-6">
+    {groups.map(([title, icon, tone, keys]) => <section key={title} className="metric-group" aria-label={title}>
+      <h2><span className={'icon-tile badge-' + tone}><Icon name={icon} /></span>{title}</h2>
+      <MetricGrid entries={keys.map((key) => {
+        const [label, symbol, accent] = metrics[key];
+        return [label, key === 'averageScore' ? formatPercent(stats[key]) : stats[key], symbol, accent];
+      })} />
     </section>)}
   </div>;
 }
@@ -38,9 +51,9 @@ export function ReportTable({ columns, rows, empty }) {
   return (
     <div className="table-scroll" tabIndex={0} role="region" aria-label="Report table">
       <table className="w-full text-left text-sm">
-        <thead className="bg-slate-100"><tr>{columns.map(([heading]) =>
+        <thead className="bg-subtle"><tr>{columns.map(([heading]) =>
           <th scope="col" className="whitespace-nowrap p-3" key={heading}>{heading}</th>)}</tr></thead>
-        <tbody className="divide-y divide-slate-200">{rows.map((row, index) => (
+        <tbody className="divide-y divide-line">{rows.map((row, index) => (
           <tr key={row.id ?? row.studentId ?? index}>{columns.map(([heading, value], column) => column === 0
             ? <th scope="row" className="p-3 font-medium" key={heading}>{value(row)}</th>
             : <td className="p-3" key={heading}>{value(row)}</td>)}</tr>

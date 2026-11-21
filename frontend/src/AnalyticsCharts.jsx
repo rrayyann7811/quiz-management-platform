@@ -11,11 +11,11 @@ function Trend({ title, points, metric, empty }) {
       {points.some((point) => point[metric] > 0) ? (
         <ResponsiveContainer width="100%" height={230} minWidth={0}>
           <LineChart data={points} margin={{ left: 0, right: 16 }} accessibilityLayer>
-            <CartesianGrid vertical={false} stroke="#e2e8f0" strokeDasharray="3 3" />
-            <XAxis dataKey="date" tickLine={false} axisLine={false} tickFormatter={dateLabel} tick={{ fontSize: 11 }} minTickGap={24} />
-            <YAxis allowDecimals={false} axisLine={false} tickLine={false} width={36} tick={{ fontSize: 11 }} />
+            <CartesianGrid vertical={false} stroke="var(--line)" strokeDasharray="3 3" />
+            <XAxis dataKey="date" tickLine={false} axisLine={false} tickFormatter={dateLabel} tick={{ fontSize: 11, fill: "var(--muted-ink)" }} minTickGap={24} />
+            <YAxis allowDecimals={false} axisLine={false} tickLine={false} width={36} tick={{ fontSize: 11, fill: "var(--muted-ink)" }} />
             <Tooltip wrapperClassName="chart-tooltip" labelFormatter={dateLabel} />
-            <Line dataKey={metric} name={metric === 'attempts' ? 'Attempts' : 'Registrations'} type="linear" stroke={metric === 'attempts' ? '#2563eb' : '#0d9488'}
+            <Line activeDot={{ r: 5, stroke: 'var(--gold)', strokeWidth: 2 }} dataKey={metric} name={metric === 'attempts' ? 'Attempts' : 'Registrations'} type="linear" stroke={metric === 'attempts' ? 'var(--sage)' : 'var(--plum)'}
               strokeWidth={2} dot={points.length < 32} isAnimationActive={false} />
           </LineChart>
         </ResponsiveContainer>
@@ -37,18 +37,19 @@ export default function AnalyticsCharts({ data }) {
         <h2 id="pass-fail-title" className="text-lg font-semibold">Pass/fail distribution</h2>
         {!passFail.completedAttempts ? <EmptyState icon="chart">No completed attempts in this date range.</EmptyState> : (
           <>
-            <div className="flex flex-wrap items-center gap-2 text-sm text-slate-600" aria-label="Pass and fail breakdown">
+            <div className="flex flex-wrap items-center gap-2 text-sm text-muted" aria-label="Pass and fail breakdown">
               <span>{passFail.completedAttempts} completed</span>
-              <Badge tone="green">{passFail.passPercentage}% passed</Badge>
-              <Badge tone="red">{passFail.failPercentage}% failed</Badge>
+              <Badge tone="sage">{passFail.passPercentage}% passed</Badge>
+              <Badge tone="clay">{passFail.failPercentage}% failed</Badge>
             </div>
             <ResponsiveContainer width="100%" height={190} minWidth={0}>
               <BarChart data={outcomes} margin={{ left: 0, right: 12 }} accessibilityLayer>
-                <CartesianGrid vertical={false} stroke="#e2e8f0" strokeDasharray="3 3" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} /><YAxis allowDecimals={false} axisLine={false} tickLine={false} width={36} />
+                <CartesianGrid vertical={false} stroke="var(--line)" strokeDasharray="3 3" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "var(--muted-ink)" }} />
+                <YAxis allowDecimals={false} axisLine={false} tickLine={false} width={36} tick={{ fontSize: 11, fill: "var(--muted-ink)" }} />
                 <Tooltip wrapperClassName="chart-tooltip" />
                 <Bar dataKey="count" name="Attempts" maxBarSize={72} radius={[6, 6, 0, 0]} isAnimationActive={false}>
-                  <Cell fill="#16a34a" /><Cell fill="#dc2626" />
+                  <Cell fill="var(--sage)" /><Cell fill="var(--terracotta)" />
                 </Bar>
               </BarChart>
             </ResponsiveContainer>

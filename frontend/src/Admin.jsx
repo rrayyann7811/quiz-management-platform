@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { PlatformStats } from './Reporting.jsx';
 import { loadRequest } from './load-request.js';
-import { Badge, EmptyState, LoadingState, PageHeading, QuickActions, useToast } from './ui.jsx';
+import { Badge, EmptyState, Icon, LoadingState, PageHeading, QuickActions, useToast } from './ui.jsx';
 
 export function useRequest(api, path, params) {
   const key = JSON.stringify([path, params]);
@@ -33,7 +33,7 @@ export function AdminSummary({ api }) {
   const [state] = useRequest(api, '/admin/dashboard');
   return (
     <div className="space-y-6">
-      <PageHeading title="Admin dashboard" description="Manage students and assessments, and track performance across the platform." />
+      <div className="dashboard-heading"><PageHeading title="Admin dashboard" description="Manage students and assessments, and track performance across the platform." /></div>
       <QuickActions items={[
         ['Create Quiz', '/admin/quizzes/new', 'plus'],
         ['Manage Categories', '/admin/categories', 'category'],
@@ -41,8 +41,30 @@ export function AdminSummary({ api }) {
         ['Open Analytics', '/admin/analytics', 'chart'],
       ]} />
       {state.data ? <PlatformStats stats={state.data} /> : loading(state)}
+      <RecentActivity api={api} />
     </div>
   );
+}
+
+const registrationDate = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' });
+
+function RecentActivity({ api }) {
+  const [state] = useRequest(api, '/users');
+  const recent = state.data?.users.slice(0, 3);
+  return <section className="card space-y-3" aria-labelledby="activity-title">
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <h2 id="activity-title" className="flex items-center gap-2 text-lg font-semibold">
+        <Icon name="clock" />Recent activity
+      </h2>
+      <Link className="text-sm" to="/admin/students">Student directory</Link>
+    </div>
+    {recent ? recent.length ? <ul aria-label="Recent student registrations">
+      {recent.map((user) => <li className="activity-row" key={user.id}>
+        <p><Link to={'/admin/students/' + user.id} className="font-semibold">{user.name}</Link> <span className="text-muted">registered</span></p>
+        <time dateTime={user.createdAt}>{registrationDate.format(new Date(user.createdAt))}</time>
+      </li>)}
+    </ul> : <EmptyState icon="students">Recent registrations will appear after students sign up.</EmptyState> : loading(state)}
+  </section>;
 }
 
 function accountStatus(user) {
@@ -73,9 +95,9 @@ export function StudentList({ api }) {
           {state.data.users.length ? (
             <div className="table-scroll" tabIndex={0} role="region" aria-label="Student records">
               <table className="w-full text-left text-sm">
-                <thead className="bg-slate-100"><tr>{['Name', 'Email', 'Status'].map((label) => <th key={label} scope="col" className="p-3">{label}</th>)}</tr></thead>
+                <thead className="bg-subtle"><tr>{['Name', 'Email', 'Status'].map((label) => <th key={label} scope="col" className="p-3">{label}</th>)}</tr></thead>
                 <tbody>{state.data.users.map((user) => (
-                  <tr key={user.id} className="border-t border-slate-200">
+                  <tr key={user.id} className="border-t border-line">
                     <td className="p-3"><Link to={user.id}>{user.name}</Link></td>
                     <td className="p-3">{user.email}</td>
                     <td className="p-3"><Badge>{accountStatus(user)}</Badge></td>
@@ -124,9 +146,9 @@ export function StudentProfile({ api }) {
       <Link className="text-sm" to="/admin/students">All students</Link>
       <div className="mt-3"><PageHeading title={user.name} /></div>
       <dl className="card mt-5 max-w-lg space-y-3">
-        <div><dt className="text-sm text-slate-600">Email</dt><dd>{user.email}</dd></div>
-        <div><dt className="text-sm text-slate-600">Registered</dt><dd>{new Date(user.createdAt).toLocaleDateString()}</dd></div>
-        <div><dt className="text-sm text-slate-600">Status</dt><dd aria-live="polite"><Badge>{accountStatus(user)}</Badge></dd></div>
+        <div><dt className="text-sm text-muted">Email</dt><dd>{user.email}</dd></div>
+        <div><dt className="text-sm text-muted">Registered</dt><dd>{new Date(user.createdAt).toLocaleDateString()}</dd></div>
+        <div><dt className="text-sm text-muted">Status</dt><dd aria-live="polite"><Badge>{accountStatus(user)}</Badge></dd></div>
       </dl>
       {!user.archivedAt && (
         <div className="mt-5 flex flex-wrap gap-3">
@@ -150,12 +172,12 @@ function AttemptHistory({ api, path }) {
           {state.data.attempts.length ? (
             <div className="table-scroll" tabIndex={0} role="region" aria-label="Student records">
               <table className="w-full text-left text-sm">
-                <thead className="bg-slate-100">
+                <thead className="bg-subtle">
                   <tr>{['Quiz', 'Completed', 'Score', 'Result'].map((label) => <th key={label} scope="col" className="p-3">{label}</th>)}</tr>
                 </thead>
                 <tbody>
                   {state.data.attempts.map((attempt) => (
-                    <tr key={attempt.id} className="border-t border-slate-200">
+                    <tr key={attempt.id} className="border-t border-line">
                       <td className="p-3"><Link to={'/admin/attempts/' + attempt.id + '/result'}>{attempt.quizTitle}</Link></td>
                       <td className="p-3">{new Date(attempt.finalizedAt).toLocaleString()}</td>
                       <td className="p-3">{attempt.score}%</td>

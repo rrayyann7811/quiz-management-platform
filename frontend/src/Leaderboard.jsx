@@ -11,8 +11,9 @@ function Rankings({ api, params, onPage, admin, busy, setExcluded }) {
   const { entries, page, hasMore } = state.data;
   const columns = [
     ['Rank', (row) => <span className={'rank' + (row.rank === 1 ? ' rank-first' : row.rank <= 3 ? ' rank-top' : '')}>{row.rank}</span>], ['Student', (row) => row.displayName],
-    ['Average best score', (row) => formatPercent(row.averageScore)],
-    ['Highest score', (row) => formatPercent(row.highestScore)], ['Quizzes completed', (row) => row.quizzesCompleted],
+    ['Average best score', (row) => <strong className="text-positive tabular-nums">{formatPercent(row.averageScore)}</strong>],
+    ['Highest score', (row) => <span className="tabular-nums">{formatPercent(row.highestScore)}</span>],
+    ['Quizzes completed', (row) => <span className="tabular-nums">{row.quizzesCompleted}</span>],
   ];
   if (admin) columns.push(['Visibility', (row) => <button className="button" disabled={busy}
     aria-label={'Exclude ' + row.displayName}
@@ -65,7 +66,14 @@ function RankingFilters({ initialCategory, initialPeriod, categories, onApply })
           <option value="overall">All time</option><option value="weekly">This week</option><option value="monthly">This month</option>
         </select>
       </div>
-      <div className="flex items-end"><button className="button">Apply filters</button></div>
+      <div className="flex flex-wrap items-end gap-2">
+        <button className="button">Apply filters</button>
+        {(initialCategory || initialPeriod !== 'overall') && <button type="button" className="button-secondary" onClick={() => {
+          setCategoryId('');
+          setPeriod('overall');
+          onApply(new URLSearchParams());
+        }}>Clear filters</button>}
+      </div>
     </form>
   );
 }

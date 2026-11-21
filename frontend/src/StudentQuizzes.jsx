@@ -1,8 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useRequest } from './Admin.jsx';
+import { loadRequest } from './load-request.js';
 import { Badge, EmptyState, Icon, LoadingState, PageHeading } from './ui.jsx';
 
+const categoryTones = ['sage', 'clay', 'plum', 'gold'];
+const categoryTone = (name) => categoryTones[[...name.toLowerCase()].reduce((sum, character) => sum + character.codePointAt(0), 0) % categoryTones.length];
 const difficultyLabels = { EASY: 'Beginner', MEDIUM: 'Intermediate', HARD: 'Advanced' };
 export const requestError = (error) => error.response?.data?.message ?? 'Could not reach the server. Try again.';
 
@@ -17,7 +20,7 @@ function QuizFacts({ quiz, compact = false }) {
         ...(!compact && { Category: quiz.category.name, Difficulty: difficultyLabels[quiz.difficulty] }), Questions: quiz._count.questions,
         Duration: quiz.durationMinutes + ' min', 'Passing score': quiz.passingPercent + '%', 'Attempts allowed': quiz.maxAttempts,
       }).map(([name, value]) => (
-        <div key={name}><dt className="text-slate-600">{name}</dt><dd className="font-medium">{value}</dd></div>
+        <div key={name}><dt className="text-muted">{name}</dt><dd className="font-medium">{value}</dd></div>
       ))}
     </dl>
   );
@@ -65,27 +68,30 @@ export function StudentQuizzes({ api }) {
           </select></div>
         <div className="flex items-end gap-3"><button className="button">Apply filters</button>
           {params.size > 0 && <Link className="py-2 text-sm" to="/student/quizzes">Clear filters</Link>}</div>
-        {categories.error && <p role="alert" className="text-sm text-red-700">{categories.error}</p>}
+        {categories.error && <p role="alert" className="text-sm text-danger">{categories.error}</p>}
       </form>
+      {state.data && <p className="text-sm font-semibold text-muted" role="status">
+        {state.data.quizzes.length} published {state.data.quizzes.length === 1 ? 'quiz' : 'quizzes'}
+      </p>}
       {!state.data ? <RequestStatus error={state.error} /> : state.data.quizzes.length ? (
         <ul className="grid gap-4 lg:grid-cols-2">
-          {state.data.quizzes.map((quiz) => (
-            <li key={quiz.id} className="card quiz-card min-w-0">
+          {state.data.quizzes.map((quiz) => {
+            const tone = categoryTone(quiz.category.name);
+            return <li key={quiz.id} className="card quiz-card min-w-0" data-tone={tone}>
               <div className="flex flex-wrap items-center gap-2">
-                <span className="icon-tile"><Icon name="book" /></span>
-                <Badge tone="slate">{quiz.category.name}</Badge><Badge>{difficultyLabels[quiz.difficulty]}</Badge>
+                <Badge tone={tone}>{quiz.category.name}</Badge><Badge>{difficultyLabels[quiz.difficulty]}</Badge>
               </div>
-              <h2 className="break-words text-xl font-semibold"><Link to={'/student/quizzes/' + quiz.id}>{quiz.title}</Link></h2>
-              <p className="break-words text-sm leading-relaxed text-slate-600">{quiz.description}</p>
+              <h2 className="break-words text-xl font-semibold">
+                <Link className="quiz-card-link" to={'/student/quizzes/' + quiz.id}>{quiz.title}</Link>
+              </h2>
+              <p className="break-words text-sm leading-relaxed text-muted">{quiz.description}</p>
               <QuizFacts quiz={quiz} compact />
-              <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="quiz-card-footer">
                 <QuizAvailability api={api} quizId={quiz.id} />
-                <Link aria-label={'View details for ' + quiz.title} className="button-secondary" to={'/student/quizzes/' + quiz.id}>
-                  View details <Icon name="arrow" size={15} />
-                </Link>
+                <span aria-hidden="true">View details <Icon name="arrow" size={15} /></span>
               </div>
-            </li>
-          ))}
+            </li>;
+          })}
         </ul>
       ) : <EmptyState action={params.size > 0 && <Link to="/student/quizzes">Clear filters</Link>}>{params.size ? "No published quizzes match your filters." : "No quizzes are available yet."}</EmptyState>}
     </div>
@@ -93,27 +99,44 @@ export function StudentQuizzes({ api }) {
 }
 
 function QuizAvailability({ api, quizId }) {
-  const [availability, setAvailability] = useState(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
+  const container = useRef(null);
+  const [request, setRequest] = useState(0);
+  const [state, setState] = useState({});
+  const started = request > 0;
 
-  async function check() {
-    setBusy(true);
-    setError('');
-    try {
-      const { data } = await api.get('/quizzes/' + quizId + '/eligibility');
-      setAvailability(data);
-    } catch (error) {
-      setError(requestError(error));
-    } finally {
-      setBusy(false);
-    }
+  useEffect(() => {
+    if (started || !('IntersectionObserver' in window)) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        setRequest((current) => current || 1);
+        observer.disconnect();
+      }
+    }, { rootMargin: '80px' });
+    observer.observe(container.current);
+    return () => observer.disconnect();
+  }, [started]);
+
+  useEffect(() => {
+    if (!started) return;
+    const controller = new AbortController();
+    void loadRequest(
+      () => api.get('/quizzes/' + quizId + '/eligibility', { signal: controller.signal }),
+      controller.signal, setState,
+    );
+    return () => controller.abort();
+  }, [api, quizId, request, started]);
+
+  function retry() {
+    setState({});
+    setRequest((current) => current + 1);
   }
 
-  return <div className="text-sm">
-    {availability ? <p role="status">{availability.remainingAttempts} remaining</p> :
-      <button type="button" className="button-secondary" onClick={check} disabled={busy}>{busy ? 'Checking…' : 'Check attempts'}</button>}
-    {error && <p role="alert" className="mt-1 text-red-700">{error}</p>}
+  return <div ref={container} className="quiz-availability text-sm">
+    {state.data ? <p className="font-medium text-muted">
+      {state.data.activeAttemptId ? 'In progress · ' : ''}{state.data.remainingAttempts} remaining
+    </p> : started && !state.error ? <p className="text-muted">Checking attempts…</p> :
+      <button type="button" className="button-secondary" onClick={retry}>{state.error ? 'Retry attempts check' : 'Check attempts'}</button>}
+    {state.error && <p role="alert" className="text-danger">{state.error}</p>}
   </div>;
 }
 
@@ -147,6 +170,10 @@ export function StudentQuizDetails({ api }) {
           <section className="card max-w-3xl space-y-4">
             <p className="whitespace-pre-wrap break-words">{state.data.quiz.description}</p>
             <QuizFacts quiz={state.data.quiz} />
+            <details className="quiz-rules">
+              <summary className="font-semibold">How attempts work</summary>
+              <p className="mt-2 text-sm text-muted">The timer starts when you open an attempt. Your answers are saved as you go, and you can review them once the attempt is finalized.</p>
+            </details>
             {!availability.data ? <RequestStatus error={availability.error} /> : (
               <>
                 <p className="text-sm">Remaining attempts: <strong>{availability.data.remainingAttempts}</strong></p>
@@ -162,7 +189,7 @@ export function StudentQuizDetails({ api }) {
                 )}
               </>
             )}
-            {error && <p role="alert" className="text-red-700">{error}</p>}
+            {error && <p role="alert" className="text-danger">{error}</p>}
           </section>
         </>
       )}

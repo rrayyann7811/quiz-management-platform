@@ -84,11 +84,11 @@ function AuthForm({ mode, onLogin, onReset }) {
                     ...(field === 'password' && mode !== 'login' && { minLength: { value: 12, message: 'Use at least 12 characters.' } }),
                   })}
                 />
-                {errors[field] && <span id={`auth-${field}-error`} className="mt-1 block text-red-700">{errors[field].message}</span>}
+                {errors[field] && <span id={`auth-${field}-error`} className="mt-1 block text-danger">{errors[field].message}</span>}
               </div>
             ))}
-            {mode === 'login' && state?.message && <p role="status" className="text-teal-800">{state.message}</p>}
-            {feedback && <p role={feedback.error ? 'alert' : 'status'} className={feedback.error ? 'text-red-700' : 'text-teal-800'}>{feedback.text}</p>}
+            {mode === 'login' && state?.message && <p role="status" className="text-positive">{state.message}</p>}
+            {feedback && <p role={feedback.error ? 'alert' : 'status'} className={feedback.error ? 'text-danger' : 'text-positive'}>{feedback.text}</p>}
             <button className="button w-full" disabled={isSubmitting}>{isSubmitting ? 'Please wait…' : action}</button>
           </form>
         )}
@@ -124,7 +124,15 @@ function Dashboard({ user, onLogout }) {
   const { pathname } = useLocation();
   const admin = user.role === 'ADMIN';
   const links = admin ? adminLinks : studentLinks;
-  const current = links.find(([to]) => pathname === to || (to !== links[0][0] && pathname.startsWith(to + '/')));
+  const [home] = links[0];
+  const current = links.find(([to]) => pathname === to || (to !== home && pathname.startsWith(to + '/')));
+  const parent = current ?? (pathname.startsWith('/admin/attempts/') ? adminLinks[1] : null);
+  const detail = pathname.endsWith('/review') ? 'Answer review'
+    : pathname.endsWith('/result') ? 'Result'
+    : pathname === '/admin/quizzes/new' ? 'Create quiz'
+    : parent?.[0].endsWith('/quizzes') ? 'Quiz details'
+    : parent?.[0].endsWith('/students') ? 'Student profile'
+    : 'Quiz attempt';
 
   useEffect(() => {
     localStorage.setItem('quiz-sidebar', collapsed ? 'collapsed' : 'expanded');
@@ -190,8 +198,15 @@ function Dashboard({ user, onLogout }) {
           title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} onClick={() => setCollapsed(!collapsed)}>
           <Icon name="panel" />
         </button>
-        <span>{admin ? 'Admin workspace' : 'Student workspace'}</span><span className="breadcrumb-divider" aria-hidden="true">/</span>
-        <strong>{current?.[1] ?? 'Dashboard'}</strong>
+        <nav className="breadcrumb" aria-label="Breadcrumb">
+          <ol>
+            <li>{pathname === home ? <span aria-current="page">{admin ? 'Admin workspace' : 'Student workspace'}</span>
+              : <Link to={home}>{admin ? 'Admin workspace' : 'Student workspace'}</Link>}</li>
+            {parent && parent[0] !== home && <li>{pathname === parent[0] ? <span aria-current="page">{parent[1]}</span>
+              : <Link to={parent[0]}>{parent[1]}</Link>}</li>}
+            {parent && pathname !== parent[0] && <li><span aria-current="page">{detail}</span></li>}
+          </ol>
+        </nav>
       </header>
       <main id="main-content" className="workspace-main" tabIndex={-1}><Outlet /></main>
     </div>

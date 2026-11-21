@@ -6,7 +6,7 @@ import { RequestStatus } from './StudentQuizzes.jsx';
 import { formatPercent, PageControls, PlatformStats, ReportTable } from './Reporting.jsx';
 
 const AnalyticsCharts = lazy(() => import('./AnalyticsCharts.jsx'));
-const quizTitle = (row) => <>{row.title}{row.archived && <small className="ml-2 text-slate-600">Archived</small>}</>;
+const quizTitle = (row) => <>{row.title}{row.archived && <small className="ml-2 text-muted">Archived</small>}</>;
 const starts = ['Starts', (row) => row.totalAttempts];
 const completed = ['Completed', (row) => row.completedAttempts];
 const average = ['Average score', (row) => formatPercent(row.averageScore)];
@@ -76,7 +76,7 @@ export function AdminAnalytics({ api }) {
         <>
           <section className="space-y-3" aria-labelledby="platform-overview">
             <h2 id="platform-overview" className="text-xl font-semibold">Platform overview</h2>
-            <p className="text-sm text-slate-600">All-time totals. Current inventory excludes archived quizzes.</p>
+            <p className="text-sm text-muted">All-time totals. Current inventory excludes archived quizzes.</p>
             <PlatformStats stats={data.platform} />
           </section>
           <Suspense fallback={<p role="status">Loading charts…</p>}>
@@ -94,7 +94,7 @@ export function AdminAnalytics({ api }) {
           </section>
           <section className="space-y-3" aria-labelledby="category-performance">
             <h2 id="category-performance" className="text-xl font-semibold">Category performance</h2>
-            <p className="text-sm text-slate-600">Attempts are grouped by their category at start. Current quiz counts use today’s inventory.</p>
+            <p className="text-sm text-muted">Attempts are grouped by their category at start. Current quiz counts use today’s inventory.</p>
             <ReportTable columns={categoryColumns} rows={data.categoryPerformance.rows} empty="No categories in this report." />
             <PageControls name="Category performance pages" page={data.categoryPerformance.page} hasMore={data.categoryPerformance.hasMore}
               onChange={(page) => paginate('categoryPage', page)} />
